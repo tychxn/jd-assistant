@@ -7,6 +7,7 @@ import random
 from base64 import b64encode
 
 import requests
+import pickle
 from bs4 import BeautifulSoup
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
@@ -55,7 +56,6 @@ def save_image(resp, image_file):
 class JDlogin(object):
 
     def __init__(self):
-        self.sess = requests.session()
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -64,6 +64,20 @@ class JDlogin(object):
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
         }
+        self.sess = requests.session()
+        try:
+            self._load_cookies()
+        except Exception as e:
+            pass
+
+    def _load_cookies(self, cookies_file='cookies'):
+        with open(cookies_file, 'rb') as f:
+            cookies = pickle.load(f)
+            self.sess.cookies.update(cookies)
+
+    def _save_cookies(self, cookies_file='cookies'):
+        with open(cookies_file, 'wb') as f:
+            pickle.dump(self.sess.cookies, f)
 
     def _need_auth_code(self, username):
         url = 'https://passport.jd.com/uc/showAuthCode'
@@ -156,6 +170,7 @@ class JDlogin(object):
 
         if not self._get_login_result(resp):
             return False
+        self._save_cookies()
         return True
 
     def _get_login_result(self, resp):
@@ -254,6 +269,7 @@ class JDlogin(object):
             return False
         else:
             print(get_current_time(), '二维码登录成功')
+            self._save_cookies()
             return True
 
 
