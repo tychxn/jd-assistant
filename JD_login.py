@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import re
 import time
 import json
 import random
@@ -51,6 +52,11 @@ def save_image(resp, image_file):
     with open(image_file, 'wb') as f:
         for chunk in resp.iter_content(chunk_size=1024):
             f.write(chunk)
+
+def parse_json(s):
+    begin = s.find('{')
+    end = s.rfind('}') + 1
+    return json.loads(s[begin:end])
 
 
 class JDlogin(object):
@@ -218,8 +224,8 @@ class JDlogin(object):
         if not response_status(resp):
             print(get_current_time(), '获取二维码扫描结果出错')
             return False
-        js = json.loads(resp.text[14:-1])
 
+        js = parse_json(resp.text)
         if js['code'] != 200:
             print(get_current_time(), 'Code: {0}, Message: {1}'.format(js['code'], js['msg']))
             return None
@@ -272,10 +278,44 @@ class JDlogin(object):
             self._save_cookies()
             return True
 
+    def _get_item_detail_page(self, sku_id):
+        url = 'https://item.jd.com/{}.html'.format(sku_id)
+        self.headers['Host'] = 'item.jd.com'
+        page = self.sess.get(url=url, headers=self.headers)
+        return page
+
+    def get_item_stock_state(self, sku_id='862576', area='3_51035_39620_0'):
+        page = self._get_item_detail_page(sku_id)
+        m = re.search(r'cat: \[(.*?)\]', page.text)
+        cat = m.group(1)
+
+        url = 'https://c0.3.cn/stock'
+        payload = {
+            'skuId' : sku_id,
+            'buyNum' : 1,
+            'area' : area,
+            'ch' : 1,
+            '_' : str(int(time.time() * 1000)),
+            'callback' : 'jQuery{}'.format(random.randint(1000000, 9999999)),
+            'extraParam' : '{"originid":"1"}',  # get error stock state without this param
+            'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
+            # 'venderId': ''  # won't return seller information without this param (can be ignored)
+        }
+        self.headers['Host'] = 'c0.3.cn'
+        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
+        resp = requests.get(url=url, params=payload, headers=self.headers)
+
+        js = parse_json(resp.text)
+        stock_state = js['stock']['StockState']  # 33 -- in stock  34 -- out of stock
+        stock_state_name = js['stock']['StockStateName']
+        print(stock_state, stock_state_name)
+        return stock_state, stock_state_name
+
 
 if __name__ == '__main__':
     # username = input('Username:')
     # password = input('Password:')
     jd = JDlogin()
     # jd.login_by_username(username, password)
-    jd.login_by_QRcode()
+    # jd.login_by_QRcode()
+    jd.get_item_stock_state(sku_id='7437788')
