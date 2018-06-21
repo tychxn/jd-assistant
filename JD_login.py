@@ -48,10 +48,12 @@ def open_image(image_file):
         else:
             os.system("open " + image_file)  # for Mac
 
+
 def save_image(resp, image_file):
     with open(image_file, 'wb') as f:
         for chunk in resp.iter_content(chunk_size=1024):
             f.write(chunk)
+
 
 def parse_json(s):
     begin = s.find('{')
@@ -135,7 +137,7 @@ class JDlogin(object):
         soup = BeautifulSoup(page.text, "html.parser")
         input_list = soup.select('.form input')
 
-        data = {}
+        data = dict()
         data['sa_token'] = input_list[0]['value']
         data['uuid'] = input_list[1]['value']
         data['_t'] = input_list[4]['value']
@@ -158,7 +160,7 @@ class JDlogin(object):
 
         login_url = "https://passport.jd.com/uc/loginService"
         payload = {
-            'uuid' : uuid,
+            'uuid': uuid,
             'version': 2015,
             'r': random.random(),
         }
@@ -291,13 +293,13 @@ class JDlogin(object):
 
         url = 'https://c0.3.cn/stock'
         payload = {
-            'skuId' : sku_id,
-            'buyNum' : 1,
-            'area' : area,
-            'ch' : 1,
-            '_' : str(int(time.time() * 1000)),
-            'callback' : 'jQuery{}'.format(random.randint(1000000, 9999999)),
-            'extraParam' : '{"originid":"1"}',  # get error stock state without this param
+            'skuId': sku_id,
+            'buyNum': 1,
+            'area': area,
+            'ch': 1,
+            '_': str(int(time.time() * 1000)),
+            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
+            'extraParam': '{"originid":"1"}',  # get error stock state without this param
             'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
             # 'venderId': ''  # won't return seller information without this param (can be ignored)
         }
@@ -308,8 +310,18 @@ class JDlogin(object):
         js = parse_json(resp.text)
         stock_state = js['stock']['StockState']  # 33 -- in stock  34 -- out of stock
         stock_state_name = js['stock']['StockStateName']
-        print(stock_state, stock_state_name)
         return stock_state, stock_state_name
+
+    def get_item_price(self, sku_id='862576'):
+        url = 'http://p.3.cn/prices/mgets'
+        payload = {
+            'type': 1,
+            'pduid': int(time.time() * 1000),
+            'skuIds': 'J_' + sku_id,
+        }
+        resp = self.sess.get(url=url, params=payload)
+        js = parse_json(resp.text)
+        return js['p']
 
 
 if __name__ == '__main__':
@@ -318,4 +330,5 @@ if __name__ == '__main__':
     jd = JDlogin()
     # jd.login_by_username(username, password)
     # jd.login_by_QRcode()
-    jd.get_item_stock_state(sku_id='7437788')
+    print(jd.get_item_stock_state(sku_id='7437788'))
+    print(jd.get_item_price(sku_id='7437788'))
