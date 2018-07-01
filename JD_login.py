@@ -82,6 +82,7 @@ class JDlogin(object):
         with open(cookies_file, 'rb') as f:
             cookies = pickle.load(f)
             self.sess.cookies.update(cookies)
+            # Todo: need to validate whether cookies is expired
 
     def _save_cookies(self, cookies_file='cookies'):
         with open(cookies_file, 'wb') as f:
@@ -323,6 +324,26 @@ class JDlogin(object):
         js = parse_json(resp.text)
         return js['p']
 
+    def add_item_to_cart(self, sku_id='862576', count=1):
+        url = 'https://cart.jd.com/gate.action'
+        payload = {
+            'pid': sku_id,
+            'pcount': count,
+            'ptype': 1,
+        }
+        try:
+            resp = self.sess.get(url=url, params=payload)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            tag = soup.select('h3.ftx-02')  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
+            if tag:
+                print(get_current_time(), '{}已成功加入购物车'.format(sku_id))
+                return True
+            else:
+                print(get_current_time(), '{}添加到购物车失败'.format(sku_id))
+                return False
+        except Exception as e:
+            print(get_current_time(), e)
+            return False
 
 if __name__ == '__main__':
     # username = input('Username:')
@@ -330,5 +351,6 @@ if __name__ == '__main__':
     jd = JDlogin()
     # jd.login_by_username(username, password)
     # jd.login_by_QRcode()
-    print(jd.get_item_stock_state(sku_id='7437788'))
-    print(jd.get_item_price(sku_id='7437788'))
+    print(jd.get_item_stock_state(sku_id='5089267'))
+    print(jd.get_item_price(sku_id='5089267'))
+    jd.add_item_to_cart(sku_id='5089267')
