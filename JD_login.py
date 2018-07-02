@@ -91,10 +91,10 @@ class JDlogin(object):
     def _need_auth_code(self, username):
         url = 'https://passport.jd.com/uc/showAuthCode'
         data = {
-            'loginName' : username,
+            'loginName': username,
         }
         payload = {
-            'version' : 2015,
+            'version': 2015,
             'r': random.random(),
         }
         resp = self.sess.post(url, params=payload, data=data, headers=self.headers)
@@ -111,10 +111,10 @@ class JDlogin(object):
 
         url = 'https://authcode.jd.com/verify/image'
         payload = {
-            'a' : 1,
-            'acid' : uuid,
-            'uid' : uuid,
-            'yys' : str(int(time.time() * 1000)),
+            'a': 1,
+            'acid': uuid,
+            'uid': uuid,
+            'yys': str(int(time.time() * 1000)),
         }
         self.headers['Host'] = 'authcode.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/uc/login'
@@ -198,8 +198,8 @@ class JDlogin(object):
         self.headers['Host'] = 'qr.m.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/new/login.aspx'
         payload = {
-            'appid' : 133,
-            'size' : 147,
+            'appid': 133,
+            'size': 147,
             't': str(int(time.time() * 1000)),
         }
         resp = self.sess.get(url=url, headers=self.headers, params=payload)
@@ -218,8 +218,8 @@ class JDlogin(object):
         url = 'https://qr.m.jd.com/check'
         payload = {
             'appid': '133',
-            'callback' : 'jQuery{}'.format(random.randint(1000000, 9999999)),
-            'token' : self.sess.cookies.get('wlfstk_smdl'),
+            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
+            'token': self.sess.cookies.get('wlfstk_smdl'),
             '_': str(int(time.time() * 1000)),
         }
         resp = self.sess.get(url=url, headers=self.headers, params=payload)
@@ -240,7 +240,7 @@ class JDlogin(object):
         url = 'https://passport.jd.com/uc/qrCodeTicketValidation'
         self.headers['Host'] = 'passport.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/uc/login?ltype=logout'
-        resp = self.sess.get(url=url, headers=self.headers, params={'t' : ticket})
+        resp = self.sess.get(url=url, headers=self.headers, params={'t': ticket})
 
         if not response_status(resp):
             return False
@@ -335,15 +335,35 @@ class JDlogin(object):
             resp = self.sess.get(url=url, params=payload)
             soup = BeautifulSoup(resp.text, "html.parser")
             tag = soup.select('h3.ftx-02')  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
-            if tag:
-                print(get_current_time(), '{}已成功加入购物车'.format(sku_id))
-                return True
-            else:
+            if not tag:
                 print(get_current_time(), '{}添加到购物车失败'.format(sku_id))
                 return False
+            print(get_current_time(), '{}已成功加入购物车'.format(sku_id))
+            return True
         except Exception as e:
             print(get_current_time(), e)
             return False
+
+    def clear_cart(self):
+        url = 'https://cart.jd.com/batchRemoveSkusFromCart.action'
+        data = {
+            'null': 0,
+            't': 0,
+            'outSkus': '',
+            'random': random.random(),
+        }
+        try:
+            resp = self.sess.post(url=url, data=data)
+            # js = parse_json(resp.text)
+            if not response_status(resp):
+                print(get_current_time(), '购物车清空失败')
+                return False
+            print(get_current_time(), '购物车清空成功')
+            return True
+        except Exception as e:
+            print(get_current_time(), e)
+            return False
+
 
 if __name__ == '__main__':
     # username = input('Username:')
@@ -354,3 +374,4 @@ if __name__ == '__main__':
     print(jd.get_item_stock_state(sku_id='5089267'))
     print(jd.get_item_price(sku_id='5089267'))
     jd.add_item_to_cart(sku_id='5089267')
+    jd.clear_cart()
