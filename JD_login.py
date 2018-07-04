@@ -61,6 +61,14 @@ def parse_json(s):
     return json.loads(s[begin:end])
 
 
+def get_tag_value(tag, key='', index=0):
+    if key:
+        value = tag[index].get(key)
+    else:
+        value = tag[index].text
+    return value.strip(' \t\r\n')
+
+
 class JDlogin(object):
 
     def __init__(self):
@@ -364,6 +372,21 @@ class JDlogin(object):
             print(get_current_time(), e)
             return False
 
+    def get_cart_detail(self):
+        url = 'https://cart.jd.com/cart.action'
+        cart_detail_format = '商品名称:{0}----单价:{1}----数量:{2}----总价:{3}'
+        try:
+            resp = self.sess.get(url)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for item in soup.select('div.item-form'):
+                name = get_tag_value(item.select('div.p-name a'))
+                price = get_tag_value(item.select('div.p-price strong'))
+                quantity = get_tag_value(item.select('div.quantity-form input'), 'value')
+                total_price = get_tag_value(item.select('div.p-sum strong'))
+                print(cart_detail_format.format(name, price, quantity, total_price))
+        except Exception as e:
+            print(get_current_time(), e)
+
 
 if __name__ == '__main__':
     # username = input('Username:')
@@ -374,4 +397,5 @@ if __name__ == '__main__':
     print(jd.get_item_stock_state(sku_id='5089267'))
     print(jd.get_item_price(sku_id='5089267'))
     jd.add_item_to_cart(sku_id='5089267')
-    jd.clear_cart()
+    # jd.clear_cart()
+    jd.get_cart_detail()
