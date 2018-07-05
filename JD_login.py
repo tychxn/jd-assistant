@@ -377,13 +377,51 @@ class JDlogin(object):
         cart_detail_format = '商品名称:{0}----单价:{1}----数量:{2}----总价:{3}'
         try:
             resp = self.sess.get(url)
+            if not response_status(resp):
+                print(get_current_time(), '获取购物车信息失败')
+                return
             soup = BeautifulSoup(resp.text, "html.parser")
+
+            print('************************购物车商品详情************************')
             for item in soup.select('div.item-form'):
                 name = get_tag_value(item.select('div.p-name a'))
                 price = get_tag_value(item.select('div.p-price strong'))
                 quantity = get_tag_value(item.select('div.quantity-form input'), 'value')
                 total_price = get_tag_value(item.select('div.p-sum strong'))
                 print(cart_detail_format.format(name, price, quantity, total_price))
+        except Exception as e:
+            print(get_current_time(), e)
+
+    def get_checkout_page_detail(self):
+        url = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
+        # url = 'https://cart.jd.com/gotoOrder.action'
+        payload = {
+            'rid': str(int(time.time() * 1000)),
+        }
+        try:
+
+            resp = self.sess.get(url=url, params=payload)
+            if not response_status(resp):
+                print(get_current_time(), '获取订单结算页信息失败')
+                return
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            print('************************订单结算页详情************************')
+            items = soup.select('div.goods-list div.goods-items')[1:]
+            checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存:{3}'
+            for item in items:
+                name = get_tag_value(item.select('div.p-name a'))
+                div_tag = item.select('div.p-price')[0]
+                price = get_tag_value(div_tag.select('strong.jd-price'))[2:]  # remove '￥ ' from the begin of price
+                quantity = get_tag_value(div_tag.select('span.p-num'))[1:]  # remove 'x' from the begin of quantity
+                state = get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
+                print(checkout_item_detail.format(name, price, quantity, state))
+
+            sum_price = soup.find('span', id='sumPayPriceId').text[1:]  # remove '￥' from the begin of sum price
+            address = soup.find('span', id='sendAddr').text[5:]  # remove '收件人:' from the begin of receiver
+            receiver = soup.find('span', id='sendMobile').text[4:]  # remove '寄送至： ' from the begin of address
+            print('应付总额:{0}'.format(sum_price))
+            print('收货地址:{0}----收件人:{1}'.format(address, receiver))
         except Exception as e:
             print(get_current_time(), e)
 
@@ -399,3 +437,4 @@ if __name__ == '__main__':
     jd.add_item_to_cart(sku_id='5089267')
     # jd.clear_cart()
     jd.get_cart_detail()
+    jd.get_checkout_page_detail()
