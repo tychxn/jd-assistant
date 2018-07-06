@@ -277,6 +277,9 @@ class JDlogin(object):
         return js['p']
 
     def add_item_to_cart(self, sku_id='862576', count=1):
+        # if user add a item to shopping cart, it will be checked (or selected) by default
+        # user can uncheck/check a item, which would make a post request to jd server to record
+        # all checked items will be sent to checkout page
         url = 'https://cart.jd.com/gate.action'
         payload = {
             'pid': sku_id,
@@ -297,17 +300,18 @@ class JDlogin(object):
             return False
 
     def clear_cart(self):
-        url = 'https://cart.jd.com/batchRemoveSkusFromCart.action'
+        # 1.select all items  2.batch remove items
+        select_url = 'https://cart.jd.com/selectAllItem.action'
+        remove_url = 'https://cart.jd.com/batchRemoveSkusFromCart.action'
         data = {
-            'null': 0,
             't': 0,
             'outSkus': '',
             'random': random.random(),
         }
         try:
-            resp = self.sess.post(url=url, data=data)
-            # js = parse_json(resp.text)
-            if not response_status(resp):
+            select_resp = self.sess.post(url=select_url, data=data)
+            remove_resp = self.sess.post(url=remove_url, data=data)
+            if (not response_status(select_resp)) or (not response_status(remove_resp)):
                 print(get_current_time(), '购物车清空失败')
                 return False
             print(get_current_time(), '购物车清空成功')
