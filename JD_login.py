@@ -65,12 +65,11 @@ class JDlogin(object):
             'r': random.random(),
         }
         resp = self.sess.post(url, params=payload, data=data, headers=self.headers)
-
         if not response_status(resp):
             print('获取是否需要验证码失败')
             return False
 
-        js = json.loads(resp.text[1:-1])
+        js = json.loads(resp.text[1:-1])  # ({"verifycode":true})
         return js['verifycode']
 
     def _get_auth_code(self, uuid):
@@ -151,15 +150,30 @@ class JDlogin(object):
         return True
 
     def _get_login_result(self, resp):
-        result = resp.text
-        if "success" in result:
+        js = parse_json(resp.text)
+        error_msg = ''
+        if 'success' in js:
+            # {"success":"http://www.jd.com"}
             print(get_current_time(), '登录成功')
             return True
+        elif 'emptyAuthcode' in js:
+            # {'_t': '_t', 'emptyAuthcode': '请输入验证码'}
+            # {'_t': '_t', 'emptyAuthcode': '验证码不正确或验证码已过期'}
+            error_msg = js['emptyAuthcode']
+        elif 'username' in js:
+            # {'_t': '_t', 'username': '账户名不存在，请重新输入'}
+            # {'username': '服务器繁忙，请稍后再试', 'venture': 'xxxx', 'p': 'xxxx', 'ventureRet': 'http://www.jd.com/', '_t': '_t'}
+            if js['username'] == '服务器繁忙，请稍后再试':
+                error_msg = js['username'] + '(预计账户存在风险，需短信激活)'
+            else:
+                error_msg = js['username']
+        elif 'pwd' in js:
+            # {'pwd': '账户名与密码不匹配，请重新输入', '_t': '_t'}
+            error_msg = js['pwd']
         else:
-            js = json.loads(result[1:-1])
-            js.pop('_t', None)
-            print(get_current_time(), '登录失败 ' + list(js.values())[0])
-            return False
+            error_msg = js
+        print(get_current_time(), error_msg)
+        return False
 
     def _get_QRcode(self):
         url = 'https://qr.m.jd.com/show'
