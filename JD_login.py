@@ -16,6 +16,8 @@ from JD_tools import *
 class JDlogin(object):
 
     def __init__(self):
+        self.username = ''
+        self.nick_name = ''
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -114,6 +116,7 @@ class JDlogin(object):
         return data
 
     def login_by_username(self, username, password):
+        self.username = username
         data = self._get_login_data()
         uuid = data['uuid']
 
@@ -245,6 +248,25 @@ class JDlogin(object):
             print(get_current_time(), '二维码登录成功')
             self._save_cookies()
             return True
+
+    def get_user_info(self):
+        url = 'https://passport.jd.com/user/petName/getUserInfoForMiniJd.action'
+        self.headers['Host'] = 'passport.jd.com'
+        self.headers['Referer'] = 'https://www.jd.com/'
+        payload = {
+            'callback': 'jsonpUserinfo',
+            '_': str(int(time.time() * 1000)),
+        }
+        try:
+            resp = self.sess.get(url=url, params=payload, headers=self.headers)
+            if not response_status(resp):
+                print(get_current_time(), '获取用户信息失败')
+                return
+            js = parse_json(resp.text)
+            # {'lastLoginTime': '', 'userLevel': 5, 'userScoreVO': {'default': False, 'financeScore': 101, 'consumptionScore': 12063, 'activityScore': 36, 'totalScore': 12431, 'accountScore': 31, 'pin': 'xxx', 'riskScore': 4}, 'imgUrl': '//storage.360buyimg.com/i.imageUpload/xxx.jpg', 'plusStatus': '0', 'realName': 'xxx', 'nickName': 'xxx'}
+            self.nick_name = js.get('nickName')
+        except Exception as e:
+            print(get_current_time(), e)
 
     def _get_item_detail_page(self, sku_id):
         url = 'https://item.jd.com/{}.html'.format(sku_id)
@@ -398,3 +420,4 @@ if __name__ == '__main__':
     jd.add_item_to_cart(sku_id='5089267')
     jd.get_cart_detail()
     jd.get_checkout_page_detail()
+    jd.get_user_info()
