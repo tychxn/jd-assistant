@@ -40,6 +40,19 @@ class JDlogin(object):
         with open(cookies_file, 'wb') as f:
             pickle.dump(self.sess.cookies, f)
 
+    def _validate_cookies(self):  # True -- cookies is valid, False -- cookies is invalid
+        # user can not access to checkout page (would redirect to login page) if his cookies is expired
+        url = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
+        payload = {
+            'rid': str(int(time.time() * 1000)),
+        }
+        try:
+            resp = self.sess.get(url=url, params=payload, allow_redirects=False)
+            return True if resp.status_code == requests.codes.OK else False
+        except Exception as e:
+            print(get_current_time(), e)
+            return False
+
     def _need_auth_code(self, username):
         url = 'https://passport.jd.com/uc/showAuthCode'
         data = {
@@ -142,7 +155,7 @@ class JDlogin(object):
         else:
             js = json.loads(result[1:-1])
             js.pop('_t', None)
-            print(get_current_time(), '登录失败 '+ list(js.values())[0])
+            print(get_current_time(), '登录失败 ' + list(js.values())[0])
             return False
 
     def _get_QRcode(self):
@@ -347,7 +360,6 @@ class JDlogin(object):
             'rid': str(int(time.time() * 1000)),
         }
         try:
-
             resp = self.sess.get(url=url, params=payload)
             if not response_status(resp):
                 print(get_current_time(), '获取订单结算页信息失败')
