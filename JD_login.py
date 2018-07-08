@@ -18,6 +18,7 @@ class JDlogin(object):
     def __init__(self):
         self.username = ''
         self.nick_name = ''
+        self.is_login = False
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -36,7 +37,7 @@ class JDlogin(object):
         with open(cookies_file, 'rb') as f:
             cookies = pickle.load(f)
             self.sess.cookies.update(cookies)
-            # Todo: need to validate whether cookies is expired
+            self.is_login = self._validate_cookies()
 
     def _save_cookies(self, cookies_file='cookies'):
         with open(cookies_file, 'wb') as f:
@@ -115,6 +116,10 @@ class JDlogin(object):
         return data
 
     def login_by_username(self, username, password):
+        if self.is_login:
+            print(get_current_time(), '登录成功')
+            return
+
         self.username = username
         data = self._get_login_data()
         uuid = data['uuid']
@@ -147,6 +152,7 @@ class JDlogin(object):
         if not self._get_login_result(resp):
             return False
         self._save_cookies()
+        self.is_login = True
         return True
 
     def _get_login_result(self, resp):
@@ -235,6 +241,10 @@ class JDlogin(object):
             return False
 
     def login_by_QRcode(self):
+        if self.is_login:
+            print(get_current_time(), '登录成功')
+            return
+
         self._get_login_page()
 
         # download QR code
@@ -261,6 +271,7 @@ class JDlogin(object):
         else:
             print(get_current_time(), '二维码登录成功')
             self._save_cookies()
+            self.is_login = True
             return True
 
     def get_user_info(self):
@@ -420,7 +431,6 @@ class JDlogin(object):
             print('收货地址:{0}----收件人:{1}'.format(address, receiver))
         except Exception as e:
             print(get_current_time(), e)
-
 
     def get_order_info(self, unpaid=True):
         exist_order = False
