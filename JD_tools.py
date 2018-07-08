@@ -64,3 +64,13 @@ def get_tag_value(tag, key='', index=0):
     else:
         value = tag[index].text
     return value.strip(' \t\r\n')
+
+
+def parse_items_dict(d):
+    result = ''
+    for index, key in enumerate(d):
+        if index < len(d) - 1:
+            result = result + '{0} x {1}, '.format(key, d[key])
+        else:
+            result = result + '{0} x {1}'.format(key, d[key])
+    return result
