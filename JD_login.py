@@ -19,6 +19,7 @@ class JDlogin(object):
         self.username = ''
         self.nick_name = ''
         self.is_login = False
+        self.risk_control = ''
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -299,7 +300,7 @@ class JDlogin(object):
         page = self.sess.get(url=url, headers=self.headers)
         return page
 
-    def get_item_stock_state(self, sku_id='862576', area='3_51035_39620_0'):
+    def get_item_stock_state(self, sku_id='5089267', area='12_904_3375'):
         page = self._get_item_detail_page(sku_id)
         m = re.search(r'cat: \[(.*?)\]', page.text)
         cat = m.group(1)
@@ -325,7 +326,7 @@ class JDlogin(object):
         stock_state_name = js['stock']['StockStateName']
         return stock_state, stock_state_name
 
-    def get_item_price(self, sku_id='862576'):
+    def get_item_price(self, sku_id='5089267'):
         url = 'http://p.3.cn/prices/mgets'
         payload = {
             'type': 1,
@@ -413,6 +414,8 @@ class JDlogin(object):
                 return
             soup = BeautifulSoup(resp.text, "html.parser")
 
+            self.risk_control = get_tag_value(soup.select('input#riskControl'), 'value')
+
             print('************************订单结算页详情************************')
             items = soup.select('div.goods-list div.goods-items')[1:]
             checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存:{3}'
@@ -429,6 +432,40 @@ class JDlogin(object):
             receiver = soup.find('span', id='sendMobile').text[4:]  # remove '寄送至： ' from the begin of address
             print('应付总额:{0}'.format(sum_price))
             print('收货地址:{0}----收件人:{1}'.format(address, receiver))
+        except Exception as e:
+            print(get_current_time(), e)
+
+    def submit_order(self):
+        url = 'https://trade.jd.com/shopping/order/submitOrder.action'
+        # js function of submit order is included in https://trade.jd.com/shopping/misc/js/order.js?r=2018070403091
+        data = {
+            'overseaPurchaseCookies': '',
+            'vendorRemarks': '[]',
+            'submitOrderParam.sopNotPutInvoice': 'false',
+            'submitOrderParam.trackID': 'TestTrackId',
+            'submitOrderParam.ignorePriceChange': '0',
+            'submitOrderParam.btSupport': '0',
+            'submitOrderParam.jxj': 1,
+            'riskControl': self.risk_control,
+            'submitOrderParam.trackId': '9643cbd55bbbe103eef18a213e069eb0',  # Todo: need to get trackId
+        }
+        self.headers['Host'] = 'trade.jd.com'
+        self.headers['Referer'] = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
+
+        try:
+            resp = self.sess.post(url=url, data=data, headers=self.headers)
+            if not response_status(resp):
+                print(get_current_time(), '订单提交失败！')
+                return
+            js = json.loads(resp.text)
+            if js.get('success'):
+                # {"message":null,"sign":null,"pin":"xxx","resultCode":0,"addressVO":null,"needCheckCode":false,"orderId": xxxx,"submitSkuNum":1,"deductMoneyFlag":0,"goJumpOrderCenter":false,"payInfo":null,"scaleSkuInfoListVO":null,"purchaseSkuInfoListVO":null,"noSupportHomeServiceSkuList":null,"success":true,"overSea":false,"orderXml":null,"cartXml":null,"noStockSkuIds":"","reqInfo":null,"hasJxj":false,"addedServiceList":null}
+                order_id = js.get('orderId')
+                item_num = js.get('submitSkuNum')
+                print(get_current_time(), '订单提交成功! 订单号：{0}'.format(order_id))
+            else:
+                print(get_current_time(), '订单提交失败, 返回信息如下：')
+                print(get_current_time(), js)
         except Exception as e:
             print(get_current_time(), e)
 
@@ -502,11 +539,12 @@ if __name__ == '__main__':
     jd = JDlogin()
     jd.login_by_username(username, password)
     # jd.login_by_QRcode()
-    print(jd.get_item_stock_state(sku_id='5089267'))
+    print(jd.get_item_stock_state(sku_id='5089267', area='12_904_3375'))
     print(jd.get_item_price(sku_id='5089267'))
     jd.clear_cart()
     jd.add_item_to_cart(sku_id='5089267')
     jd.get_cart_detail()
     jd.get_checkout_page_detail()
     jd.get_user_info()
-    jd.get_order_info(unpaid=False)
+    jd.submit_order()
+    jd.get_order_info(unpaid=True)
