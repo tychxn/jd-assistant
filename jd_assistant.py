@@ -10,10 +10,10 @@ import requests
 import pickle
 from bs4 import BeautifulSoup
 
-from JD_tools import *
+from jd_tools import *
 
 
-class JDlogin(object):
+class Assistant(object):
 
     def __init__(self):
         self.username = ''
@@ -75,7 +75,7 @@ class JDlogin(object):
         return js['verifycode']
 
     def _get_auth_code(self, uuid):
-        image_file = os.path.join(os.getcwd(), 'JD_authcode.jpg')
+        image_file = os.path.join(os.getcwd(), 'jd_authcode.jpg')
 
         url = 'https://authcode.jd.com/verify/image'
         payload = {
@@ -540,15 +540,16 @@ class JDlogin(object):
 
 
 if __name__ == '__main__':
-    jd = JDlogin()
-    jd.login_by_username()
-    # jd.login_by_QRcode()
-    print(jd.get_item_stock_state(sku_id='5089267', area='12_904_3375'))
-    print(jd.get_item_price(sku_id='5089267'))
-    jd.clear_cart()
-    jd.add_item_to_cart(sku_id='5089267')
-    jd.get_cart_detail()
-    jd.get_checkout_page_detail()
-    jd.get_user_info()
-    jd.submit_order()
-    jd.get_order_info(unpaid=True)
+    asst = Assistant()
+    asst.login_by_username()
+    # asst.login_by_QRcode()
+    print(asst.get_item_stock_state(sku_id='5089267', area='12_904_3375'))
+    print(asst.get_item_price(sku_id='5089267'))
+    asst.clear_cart()
+    asst.add_item_to_cart(sku_id='5089267')
+    asst.get_cart_detail()
+    asst.get_checkout_page_detail()
+    asst.get_user_info()
+    asst.submit_order()
+    asst.get_order_info(unpaid=True)
+
