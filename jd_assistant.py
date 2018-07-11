@@ -20,6 +20,7 @@ class Assistant(object):
         self.nick_name = ''
         self.is_login = False
         self.risk_control = ''
+        self.item_cat = dict()
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -36,9 +37,9 @@ class Assistant(object):
 
     def _load_cookies(self, cookies_file='cookies'):
         with open(cookies_file, 'rb') as f:
-            cookies = pickle.load(f)
-            self.sess.cookies.update(cookies)
-            self.is_login = self._validate_cookies()
+            local_cookies = pickle.load(f)
+        self.sess.cookies.update(local_cookies)
+        self.is_login = self._validate_cookies()
 
     def _save_cookies(self, cookies_file='cookies'):
         with open(cookies_file, 'wb') as f:
@@ -293,10 +294,11 @@ class Assistant(object):
             resp = self.sess.get(url=url, params=payload, headers=self.headers)
             if not response_status(resp):
                 print(get_current_time(), '获取用户信息失败')
-                return
+                return None
             js = parse_json(resp.text)
             # {'lastLoginTime': '', 'userLevel': 5, 'userScoreVO': {'default': False, 'financeScore': 101, 'consumptionScore': 12063, 'activityScore': 36, 'totalScore': 12431, 'accountScore': 31, 'pin': 'xxx', 'riskScore': 4}, 'imgUrl': '//storage.360buyimg.com/i.imageUpload/xxx.jpg', 'plusStatus': '0', 'realName': 'xxx', 'nickName': 'xxx'}
-            self.nick_name = js.get('nickName')
+            # many user info are included in response, now return nick name in it
+            return js.get('nickName')
         except Exception as e:
             print(get_current_time(), e)
 
@@ -307,9 +309,12 @@ class Assistant(object):
         return page
 
     def get_item_stock_state(self, sku_id='5089267', area='12_904_3375'):
-        page = self._get_item_detail_page(sku_id)
-        m = re.search(r'cat: \[(.*?)\]', page.text)
-        cat = m.group(1)
+        cat = self.item_cat.get(sku_id)
+        if not cat:
+            page = self._get_item_detail_page(sku_id)
+            m = re.search(r'cat: \[(.*?)\]', page.text)
+            cat = m.group(1)
+            self.item_cat[sku_id] = cat
 
         url = 'https://c0.3.cn/stock'
         payload = {
@@ -328,9 +333,9 @@ class Assistant(object):
         resp = requests.get(url=url, params=payload, headers=self.headers)
 
         js = parse_json(resp.text)
-        stock_state = js['stock']['StockState']  # 33 -- in stock  34 -- out of stock
+        stock_state = js['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
         stock_state_name = js['stock']['StockStateName']
-        return stock_state, stock_state_name
+        return stock_state, stock_state_name  # (33, '现货') (34, '无货') (40, '可配货')
 
     def get_item_price(self, sku_id='5089267'):
         url = 'http://p.3.cn/prices/mgets'
@@ -549,7 +554,6 @@ if __name__ == '__main__':
     asst.add_item_to_cart(sku_id='5089267')
     asst.get_cart_detail()
     asst.get_checkout_page_detail()
-    asst.get_user_info()
-    asst.submit_order()
-    asst.get_order_info(unpaid=True)
-
+    print(asst.get_user_info())
+    # asst.submit_order()
+    asst.get_order_info(unpaid=False)
