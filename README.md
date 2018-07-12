@@ -44,6 +44,7 @@
 - 添加定时下单功能
 - 添加日志记录功能
 - 添加用户界面
+- 考虑将`PyCrypto`库替换为[`PyCryptodome`](https://github.com/Legrandin/pycryptodome)
 
 ## Remark
 
