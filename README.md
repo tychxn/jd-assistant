@@ -1,4 +1,8 @@
-# jd-assistant
+# JD-Assistant
+
+[![version](https://img.shields.io/badge/python-3.4+-blue.svg)](https://www.python.org/download/releases/3.4.0/) 
+[![status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/tychxn/jd-assistant)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](./LICENSE)
 
 京东抢购助手
 
@@ -17,19 +21,19 @@
   - 获取购物车商品详情
 - 订单提交操作
   - 获取订单结算页面信息 (商品详情, 应付总额, 收货地址, 收货人等)
-  - 提交订单 (剩余个别参数未分析，待完成)
+  - 提交订单
 - 订单查询操作
   - 获取个人中心订单信息 (可选择只显示未付款订单)
 
 ## 运行环境
 
-- Python 3.5
+- Python 3
 
 ## 第三方库
 
 - [Requests](http://docs.python-requests.org/en/master/)
 - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
-- [`PyCryptodome`](https://github.com/Legrandin/pycryptodome)
+- [PyCryptodome](https://github.com/Legrandin/pycryptodome)
 
 ```sh
 pip install -r requirements.txt
