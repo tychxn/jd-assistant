@@ -29,7 +29,11 @@
 
 - [Requests](http://docs.python-requests.org/en/master/)
 - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
-- [PyCrypto](https://www.dlitz.net/software/pycrypto/) ([Python3.5快速安装PyCrypto](https://github.com/sfbahr/PyCrypto-Wheels))
+- [`PyCryptodome`](https://github.com/Legrandin/pycryptodome)
+
+```sh
+pip install -r requirements.txt
+```
 
 ## Todo
 
@@ -45,10 +49,10 @@
 - 添加定时下单功能
 - 添加日志记录功能
 - 添加用户界面
-- 考虑将`PyCrypto`库替换为[`PyCryptodome`](https://github.com/Legrandin/pycryptodome)
+- ~~考虑将`PyCrypto`库替换为[`PyCryptodome`](https://github.com/Legrandin/pycryptodome)~~
 
 ## Remark
 
-- 京东商城的登录机制经常改动，当前测试时间`2018.7.10`。如果失效，请在issue中提出，我会来更新。
+- 京东商城的登录机制经常改动，当前测试时间`2018.7.20`。如果失效，请在issue中提出，我会来更新。
 - 使用帐号密码登陆时，第一次登陆可能会出现无需验证码但是登陆失败的情况，再次登陆就会提示需要验证码并正常登录。
 - 图片查看器背景颜色为黑色时，二维码会出现无法扫描的情况 (多发于`win10`系统)，请更换软件打开图片。
