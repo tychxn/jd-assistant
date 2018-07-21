@@ -8,7 +8,7 @@
 
 ## 功能
 
-- 模拟登陆京东商城（jd.com）
+- 模拟登陆京东商城（[www.jd.com](http://www.jd.com/)）
   - 账号密码登录 (如需验证码会提示输入)
   - 手机扫码登录
   - 保存/加载登录cookies (可验证cookies是否过期)
@@ -27,7 +27,7 @@
 
 ## 运行环境
 
-- Python 3
+- [Python 3](https://www.python.org/)
 
 ## 第三方库
 
@@ -35,25 +35,27 @@
 - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
 - [PyCryptodome](https://github.com/Legrandin/pycryptodome)
 
+安装：
 ```sh
 pip install -r requirements.txt
 ```
 
 ## Todo
 
-- ~~添加扫码登陆功能~~
-- ~~添加商品库存查询功能~~
-- ~~添加根据地址获取ID功能~~（暂时根据地址ID表对应查询）
-- ~~添加商品价格查询功能~~ (计划添加分别获取网页端，APP端，手机QQ端，微信端价格)
-- 添加商品下单功能 (~~添加购物车~~->~~结算页面~~->下单)
-- ~~检查本地保存的cookies是否过期~~
-- ~~获取登录用户信息 (用户昵称等)~~
-- ~~添加订单查询功能~~
-- 添加有货下单功能
-- 添加定时下单功能
-- 添加日志记录功能
-- 添加用户界面
-- ~~考虑将`PyCrypto`库替换为[`PyCryptodome`](https://github.com/Legrandin/pycryptodome)~~
+- [x] 添加扫码登陆功能
+- [x] 添加商品库存查询功能
+- [x] 添加根据地址获取ID功能：暂时根据地址ID表对应查询
+- [x] 添加商品价格查询功能 (后续分别添加获取网页端，APP端，手机QQ端，微信端价格)
+- [x] 添加商品下单功能：添加购物车->结算页面->下单（仍需优化）
+- [x] 检查本地保存的cookies是否过期
+- [x] 获取登录用户信息：用户昵称等
+- [x] 添加订单查询功能
+- [x] 将`PyCrypto`库替换为[`PyCryptodome`](https://github.com/Legrandin/pycryptodome)
+- [ ] 添加有货下单功能
+- [ ] 添加定时下单功能
+- [ ] 添加日志记录功能
+- [ ] 编写使用文档
+- [ ] 添加用户界面
 
 ## Remark
 
