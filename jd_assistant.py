@@ -518,9 +518,8 @@ class Assistant(object):
                 sum_price = ''
                 pay_method = ''
                 if amount_div:
-                    spans = amount_div.select('span')
-                    sum_price = spans[0].text[4:]
-                    pay_method = spans[1].text
+                    sum_price = get_tag_value(amount_div.select('strong'), index=1)[1:]
+                    pay_method = get_tag_value(amount_div.select('span'), index=1)
 
                 # get order status
                 order_status = get_tag_value(table_body.select('span.order-status'))
