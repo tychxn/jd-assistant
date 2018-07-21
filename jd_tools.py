@@ -9,7 +9,6 @@ import requests
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
 
-
 RSA_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDC7kw8r6tq43pwApYvkJ5lalja
 N9BZb21TAIfT/vexbobzH7Q8SUdP5uDPXEBKzOjx2L28y7Xs1d9v3tdPfKI2LR7P
@@ -19,8 +18,8 @@ q+CA6agNkqly2H4j6wIDAQAB
 
 
 def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
-    rsakey = RSA.importKey(public_key)
-    encryptor = Cipher_pkcs1_v1_5.new(rsakey)
+    rsa_key = RSA.importKey(public_key)
+    encryptor = Cipher_pkcs1_v1_5.new(rsa_key)
     cipher = b64encode(encryptor.encrypt(password.encode('utf-8')))
     return cipher.decode('utf-8')
 
