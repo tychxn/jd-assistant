@@ -35,13 +35,22 @@ class Assistant(object):
         except Exception as e:
             pass
 
-    def _load_cookies(self, cookies_file='cookies'):
+    def _load_cookies(self):
+        cookies_file = ''
+        for name in os.listdir('./cookies'):
+            if name.endswith('.cookies'):
+                cookies_file = './cookies/{0}'.format(name)
+                break
         with open(cookies_file, 'rb') as f:
             local_cookies = pickle.load(f)
         self.sess.cookies.update(local_cookies)
         self.is_login = self._validate_cookies()
 
-    def _save_cookies(self, cookies_file='cookies'):
+    def _save_cookies(self):
+        cookies_file = './cookies/{0}.cookies'.format(self.nick_name)
+        directory = os.path.dirname(cookies_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
         with open(cookies_file, 'wb') as f:
             pickle.dump(self.sess.cookies, f)
 
@@ -123,8 +132,8 @@ class Assistant(object):
             print(get_current_time(), '登录成功')
             return
 
-        username = input('Username:')
-        password = input('Password:')
+        username = input('账号:')
+        password = input('密码:')
         if (not username) or (not password):
             print(get_current_time(), '用户名或密码不能为空')
             return
@@ -160,6 +169,10 @@ class Assistant(object):
 
         if not self._get_login_result(resp):
             return False
+
+        # login success
+        print(get_current_time(), '登录成功')
+        self.nick_name = self.get_user_info()
         self._save_cookies()
         self.is_login = True
         return True
@@ -169,7 +182,6 @@ class Assistant(object):
         error_msg = ''
         if 'success' in js:
             # {"success":"http://www.jd.com"}
-            print(get_current_time(), '登录成功')
             return True
         elif 'emptyAuthcode' in js:
             # {'_t': '_t', 'emptyAuthcode': '请输入验证码'}
@@ -295,13 +307,14 @@ class Assistant(object):
             resp = self.sess.get(url=url, params=payload, headers=self.headers)
             if not response_status(resp):
                 print(get_current_time(), '获取用户信息失败')
-                return None
+                return ''
             js = parse_json(resp.text)
             # {'lastLoginTime': '', 'userLevel': 5, 'userScoreVO': {'default': False, 'financeScore': 101, 'consumptionScore': 12063, 'activityScore': 36, 'totalScore': 12431, 'accountScore': 31, 'pin': 'xxx', 'riskScore': 4}, 'imgUrl': '//storage.360buyimg.com/i.imageUpload/xxx.jpg', 'plusStatus': '0', 'realName': 'xxx', 'nickName': 'xxx'}
             # many user info are included in response, now return nick name in it
             return js.get('nickName')
         except Exception as e:
             print(get_current_time(), e)
+            return ''
 
     def _get_item_detail_page(self, sku_id):
         url = 'https://item.jd.com/{}.html'.format(sku_id)
