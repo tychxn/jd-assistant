@@ -503,14 +503,14 @@ class Assistant(object):
             table_bodies = order_table.select('tbody')
             exist_order = False
             for table_body in table_bodies:
-                exist_order = True
-
                 # check if order is waiting for payment
                 wait_payment = bool(table_body.select('a.btn-pay'))
 
                 # only show unpaid orders if unpaid=True
                 if unpaid and (not wait_payment):
                     break
+
+                exist_order = True
 
                 # get deal_time, order_id
                 tr_th = table_body.select('tr.tr-th')[0]
