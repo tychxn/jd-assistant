@@ -46,8 +46,8 @@ class Assistant(object):
             pickle.dump(self.sess.cookies, f)
 
     def _validate_cookies(self):  # True -- cookies is valid, False -- cookies is invalid
-        # user can not access to checkout page (would redirect to login page) if his cookies is expired
-        url = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
+        # user can't access to order list page (would redirect to login page) if his cookies is expired
+        url = 'https://order.jd.com/center/list.action'
         payload = {
             'rid': str(int(time.time() * 1000)),
         }
