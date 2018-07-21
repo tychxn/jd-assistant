@@ -501,14 +501,18 @@ class Assistant(object):
             print('************************订单列表页查询************************')
             order_table = soup.find('table', {'class': 'order-tb'})
             table_bodies = order_table.select('tbody')
+            exist_order = False
             for table_body in table_bodies:
-                # only show unpaid orders if unpaid=True
-                if unpaid and (not table_body.select('a.btn-pay')):
-                    break
-
                 exist_order = True
 
-                # get deal_time
+                # check if order is waiting for payment
+                wait_payment = bool(table_body.select('a.btn-pay'))
+
+                # only show unpaid orders if unpaid=True
+                if unpaid and (not wait_payment):
+                    break
+
+                # get deal_time, order_id
                 tr_th = table_body.select('tr.tr-th')[0]
                 deal_time = get_tag_value(tr_th.select('span.dealtime'))
                 order_id = get_tag_value(tr_th.select('span.number a'))
@@ -518,8 +522,13 @@ class Assistant(object):
                 sum_price = ''
                 pay_method = ''
                 if amount_div:
-                    sum_price = get_tag_value(amount_div.select('strong'), index=1)[1:]
-                    pay_method = get_tag_value(amount_div.select('span'), index=1)
+                    spans = amount_div.select('span')
+                    pay_method = get_tag_value(spans, index=1)
+                    # if the order is waiting for payment, the price after the discount is shown.
+                    if wait_payment:
+                        sum_price = get_tag_value(amount_div.select('strong'), index=1)[1:]
+                    else:
+                        sum_price = get_tag_value(spans, index=0)[4:]
 
                 # get order status
                 order_status = get_tag_value(table_body.select('span.order-status'))
