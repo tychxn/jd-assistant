@@ -3,6 +3,7 @@
 [![version](https://img.shields.io/badge/python-3.4+-blue.svg)](https://www.python.org/download/releases/3.4.0/) 
 [![status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/tychxn/jd-assistant)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/tychxn/jd-assistant)
 
 京东抢购助手
 
@@ -59,6 +60,6 @@ pip install -r requirements.txt
 
 ## Remark
 
-- 京东商城的登录机制经常改动，当前测试时间`2018.7.20`。如果失效，请在issue中提出，我会来更新。
+- 京东商城的登录机制经常改动，当前测试时间`2018.7.23`。如果失效，请在issue中提出，我会来更新。
 - 使用帐号密码登陆时，第一次登陆可能会出现无需验证码但是登陆失败的情况，再次登陆就会提示需要验证码并正常登录。
 - 图片查看器背景颜色为黑色时，二维码会出现无法扫描的情况 (多发于`win10`系统)，请更换软件打开图片。
