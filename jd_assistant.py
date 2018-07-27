@@ -291,6 +291,7 @@ class Assistant(object):
             return False
         else:
             print(get_current_time(), '二维码登录成功')
+            self.nick_name = self.get_user_info()
             self._save_cookies()
             self.is_login = True
             return True
