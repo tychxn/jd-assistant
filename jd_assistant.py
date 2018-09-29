@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
 import re
-import time
-import json
 import random
+from datetime import datetime
 
-import requests
 import pickle
 from bs4 import BeautifulSoup
 
@@ -264,7 +261,7 @@ class Assistant(object):
     def login_by_QRcode(self):
         if self.is_login:
             print(get_current_time(), '登录成功')
-            return
+            return True
 
         self._get_login_page()
 
@@ -350,7 +347,10 @@ class Assistant(object):
         js = parse_json(resp.text)
         stock_state = js['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
         stock_state_name = js['stock']['StockStateName']
-        return stock_state, stock_state_name  # (33, '现货') (34, '无货') (40, '可配货')
+        return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
+
+    def if_item_in_stock(self, sku_id='5089267', area='12_904_3375'):
+        return True if self.get_item_stock_state(sku_id, area)[0] == 33 else False
 
     def get_item_price(self, sku_id='5089267'):
         url = 'http://p.3.cn/prices/mgets'
@@ -462,6 +462,10 @@ class Assistant(object):
             print(get_current_time(), e)
 
     def submit_order(self):
+        if not self.is_login:
+            print(get_current_time(), '请先登录再提交订单！')
+            return False
+
         url = 'https://trade.jd.com/shopping/order/submitOrder.action'
         # js function of submit order is included in https://trade.jd.com/shopping/misc/js/order.js?r=2018070403091
         data = {
@@ -482,20 +486,60 @@ class Assistant(object):
             resp = self.sess.post(url=url, data=data, headers=self.headers)
             if not response_status(resp):
                 print(get_current_time(), '订单提交失败！')
-                return
+                return False
             js = json.loads(resp.text)
             if js.get('success'):
                 # {"message":null,"sign":null,"pin":"xxx","resultCode":0,"addressVO":null,"needCheckCode":false,"orderId": xxxx,"submitSkuNum":1,"deductMoneyFlag":0,"goJumpOrderCenter":false,"payInfo":null,"scaleSkuInfoListVO":null,"purchaseSkuInfoListVO":null,"noSupportHomeServiceSkuList":null,"success":true,"overSea":false,"orderXml":null,"cartXml":null,"noStockSkuIds":"","reqInfo":null,"hasJxj":false,"addedServiceList":null}
                 order_id = js.get('orderId')
                 item_num = js.get('submitSkuNum')
                 print(get_current_time(), '订单提交成功! 订单号：{0}'.format(order_id))
+                return True
             else:
                 print(get_current_time(), '订单提交失败, 返回信息如下：')
                 print(get_current_time(), js)
+                return False
         except Exception as e:
             print(get_current_time(), e)
+            return False
+
+    def submit_order_by_time(self, buy_time, retry=2, interval=5):
+        if not self.is_login:
+            print(get_current_time(), '请先登录再定时下单！')
+            return
+
+        # '2018-09-28 22:45:50.000'
+        buy_time = datetime.strptime(buy_time, "%Y-%m-%d %H:%M:%S.%f")
+        print(get_current_time(), '正在等待下单……')
+
+        now_time = datetime.now
+        count = 1
+        while True:
+            if retry <= 0:
+                break
+            if now_time() >= buy_time:
+                print(get_current_time(), '第%s次尝试下单……' % count)
+                if self.submit_order():
+                    break
+                else:
+                    retry -= 1
+                    count += 1
+                    time.sleep(interval)
+
+    def submit_order_by_stock(self, sku_id='5089267', area='12_904_3375', interval=3):
+        while True:
+            if self.if_item_in_stock(sku_id=sku_id, area=area):
+                print(get_current_time(), '%s有货了，正在提交订单……' % sku_id)
+                self.submit_order()
+                break
+            else:
+                print(get_current_time(), '%s无货，准备下一次查询……' % sku_id)
+                time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
+        if not self.is_login:
+            print(get_current_time(), '请先登录再查询订单！')
+            return False
+
         url = 'https://order.jd.com/center/list.action'
         payload = {
             'search': 0,
