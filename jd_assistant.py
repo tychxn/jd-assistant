@@ -293,6 +293,33 @@ class Assistant(object):
             self.is_login = True
             return True
 
+    def _get_reserve_url(self, sku_id):
+        url = 'https://yushou.jd.com/youshouinfo.action'
+        self.headers['Host'] = 'yushou.jd.com'
+        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
+        payload = {
+            'callback': 'fetchJSON',
+            'sku': sku_id
+        }
+        resp = self.sess.get(url=url, params=payload, headers=self.headers)
+        js = parse_json(resp.text)
+        # {"type":"1","hasAddress":false,"riskCheck":"0","flag":false,"num":941723,"stime":"2018-10-12 12:40:00","plusEtime":"","qiangEtime":"","showPromoPrice":"0","qiangStime":"","state":2,"sku":100000287121,"info":"\u9884\u7ea6\u8fdb\u884c\u4e2d","isJ":0,"address":"","d":48824,"hidePrice":"0","yueEtime":"2018-10-19 15:01:00","plusStime":"","isBefore":0,"url":"//yushou.jd.com/toYuyue.action?sku=100000287121&key=237af0174f1cffffd227a2f98481a338","etime":"2018-10-19 15:01:00","plusD":48824,"category":"4","plusType":0,"yueStime":"2018-10-12 12:40:00"};
+        reserve_url = js.get('url')
+        return 'https:' + reserve_url if reserve_url else None
+
+    def make_reserve(self, sku_id):
+        reserve_url = self._get_reserve_url(sku_id)
+        if not reserve_url:
+            print(get_current_time(), '{} 非预约商品'.format(sku_id))
+            return
+        self.headers['Host'] = 'yushou.jd.com'
+        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
+        resp = self.sess.get(url=reserve_url, headers=self.headers)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        reserve_result = soup.find('p', {'class': 'bd-right-result'}).text.strip(' \t\r\n')
+        # 预约成功，已获得抢购资格 / 您已成功预约过了，无需重复预约
+        print(get_current_time(), reserve_result)
+
     def get_user_info(self):
         url = 'https://passport.jd.com/user/petName/getUserInfoForMiniJd.action'
         self.headers['Host'] = 'passport.jd.com'
@@ -367,6 +394,7 @@ class Assistant(object):
         # if user add a item to shopping cart, it will be checked (or selected) by default
         # user can uncheck/check a item, which would make a post request to jd server to record
         # all checked items will be sent to checkout page
+        # some items can't add to cart such as pre sale
         url = 'https://cart.jd.com/gate.action'
         payload = {
             'pid': sku_id,
