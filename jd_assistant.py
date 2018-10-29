@@ -421,6 +421,14 @@ class Assistant(object):
             return False
 
     def clear_cart(self):
+        """清空购物车
+
+        包括两个请求：
+        1.选中购物车中所有的商品
+        2.批量删除
+
+        :return: 清空购物车结果 True/False
+        """
         # 1.select all items  2.batch remove items
         select_url = 'https://cart.jd.com/selectAllItem.action'
         remove_url = 'https://cart.jd.com/batchRemoveSkusFromCart.action'
@@ -442,6 +450,9 @@ class Assistant(object):
             return False
 
     def get_cart_detail(self):
+        """获取购物车商品详情
+        :return:
+        """
         url = 'https://cart.jd.com/cart.action'
         cart_detail_format = '商品名称:{0}----单价:{1}----数量:{2}----总价:{3}'
         try:
@@ -496,6 +507,12 @@ class Assistant(object):
             print(get_current_time(), e)
 
     def submit_order(self):
+        """提交商品订单
+
+        重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
+
+        :return: 订单提交结果 True/False
+        """
         if not self.is_login:
             print(get_current_time(), '请先登录再提交订单！')
             return False
@@ -536,7 +553,16 @@ class Assistant(object):
             print(get_current_time(), e)
             return False
 
-    def submit_order_by_time(self, buy_time, retry=2, interval=5):
+    def submit_order_by_time(self, buy_time, retry=4, interval=5):
+        """定时提交商品订单
+
+        重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
+
+        :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
+        :param retry: 下单重复执行次数，可选参数，默认4次
+        :param interval: 下单执行间隔，可选参数，默认5秒
+        :return:
+        """
         if not self.is_login:
             print(get_current_time(), '请先登录再定时下单！')
             return
@@ -559,7 +585,17 @@ class Assistant(object):
                     count += 1
                     time.sleep(interval)
 
-    def submit_order_by_stock(self, sku_id='5089267', area='12_904_3375', interval=3):
+    def submit_order_by_stock(self, sku_id, area, interval=3):
+        """当商品有库存时提交订单
+
+        重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
+        该方法会按照指定的间隔查询库存，当有货时提交订单。
+
+        :param sku_id: 商品id
+        :param area: 地区id
+        :param interval: 查询库存间隔，可选参数，默认为3秒/次
+        :return:
+        """
         while True:
             if self.if_item_in_stock(sku_id=sku_id, area=area):
                 print(get_current_time(), '%s有货了，正在提交订单……' % sku_id)
@@ -570,6 +606,10 @@ class Assistant(object):
                 time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
+        """查询订单信息
+        :param unpaid: 只显示未付款订单，可选参数，默认为True
+        :return:
+        """
         if not self.is_login:
             print(get_current_time(), '请先登录再查询订单！')
             return False
@@ -673,6 +713,7 @@ class Assistant(object):
     def request_seckill_url(self, sku_id):
         """访问商品的抢购链接（用于设置cookie等）
         :param sku_id: 商品id
+        :return:
         """
         self.seckill_url = self._get_seckill_url(sku_id) if not self.seckill_url else self.seckill_url
         self.headers['Host'] = 'marathon.jd.com'
@@ -682,6 +723,7 @@ class Assistant(object):
     def request_seckill_checkout_page(self, sku_id):
         """访问抢购订单结算页面
         :param sku_id: 商品id
+        :return:
         """
         url = 'https://marathon.jd.com/seckill/seckill.action'
         payload = {
@@ -692,7 +734,6 @@ class Assistant(object):
         self.headers['Host'] = 'marathon.jd.com'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         resp = self.sess.get(url=url, params=payload, headers=self.headers)
-        print(resp.text)
 
     def _get_default_address(self, sku_id):
         """获取用户默认下单地址
@@ -792,10 +833,10 @@ class Assistant(object):
         3. 提交抢购（秒杀）订单
 
         :param sku_id: 商品id
-        :param retry: 抢购重复执行次数，可选参数，默认3次
+        :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
+        :return:
         """
-
         for _ in range(retry):
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id)
