@@ -17,13 +17,6 @@ class Assistant(object):
         self.username = ''
         self.nick_name = ''
         self.is_login = False
-        self.risk_control = ''
-        self.item_cat = dict()
-        self.default_addr = None
-        self.seckill_data = None
-        self.seckill_url = ''
-        self.eid = 'UHU6KVDJS7PNLJUHG2ICBFACVLMEXVPQUGIK2QVXYMSN45BIEMUSICVLTYQYOZYZN2KWHV3WQWMFH4QPED2DVQHUXE'
-        self.fp = '536e2679b85ddea9baccc7b705f2f8e0'
         self.headers = {
             'Host': 'passport.jd.com',
             'Connection': 'keep-alive',
@@ -33,6 +26,16 @@ class Assistant(object):
             'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
         }
         self.sess = requests.session()
+
+        self.item_cat = dict()
+
+        self.risk_control = ''
+        self.eid = 'UHU6KVDJS7PNLJUHG2ICBFACVLMEXVPQUGIK2QVXYMSN45BIEMUSICVLTYQYOZYZN2KWHV3WQWMFH4QPED2DVQHUXE'
+        self.fp = '536e2679b85ddea9baccc7b705f2f8e0'
+
+        self.default_addr = None
+        self.seckill_data = None
+        self.seckill_url = ''
         try:
             self._load_cookies()
         except Exception as e:
@@ -383,7 +386,16 @@ class Assistant(object):
         return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
 
     def if_item_in_stock(self, sku_id='5089267', area='12_904_3375'):
-        return True if self.get_item_stock_state(sku_id, area)[0] == 33 else False
+        """判断商品是否有货
+        :param sku_id: 商品id
+        :param area: 地址id
+        :return: 商品是否有货 True/False
+        """
+        # 库存状态码
+        stock_code = self.get_item_stock_state(sku_id, area)[0]
+
+        # 现货（33）和可配货（40）均可以下单
+        return True if stock_code == 33 or stock_code == 40 else False
 
     def get_item_price(self, sku_id='5089267'):
         url = 'http://p.3.cn/prices/mgets'
@@ -733,7 +745,7 @@ class Assistant(object):
         }
         self.headers['Host'] = 'marathon.jd.com'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
-        resp = self.sess.get(url=url, params=payload, headers=self.headers)
+        self.sess.get(url=url, params=payload, headers=self.headers)
 
     def _get_default_address(self, sku_id):
         """获取用户默认下单地址
