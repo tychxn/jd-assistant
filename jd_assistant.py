@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 from urllib import parse
 
+import requests
 import pickle
 from bs4 import BeautifulSoup
 
@@ -18,12 +19,7 @@ class Assistant(object):
         self.nick_name = ''
         self.is_login = False
         self.headers = {
-            'Host': 'passport.jd.com',
-            'Connection': 'keep-alive',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
         }
         self.sess = requests.session()
 
@@ -100,7 +96,6 @@ class Assistant(object):
             'uid': uuid,
             'yys': str(int(time.time() * 1000)),
         }
-        self.headers['Host'] = 'authcode.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/uc/login'
         resp = self.sess.get(url, params=payload, headers=self.headers)
 
@@ -164,9 +159,7 @@ class Assistant(object):
         data['authcode'] = auth_code
         data['loginname'] = username
         data['nloginpwd'] = encrypt_pwd(password)
-        self.headers['Host'] = 'passport.jd.com'
         self.headers['Origin'] = 'https://passport.jd.com'
-        self.headers['X-Requested-With'] = 'XMLHttpRequest'
         resp = self.sess.post(url=login_url, data=data, headers=self.headers, params=payload)
 
         if not response_status(resp):
@@ -210,7 +203,6 @@ class Assistant(object):
 
     def _get_QRcode(self):
         url = 'https://qr.m.jd.com/show'
-        self.headers['Host'] = 'qr.m.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/new/login.aspx'
         payload = {
             'appid': 133,
@@ -253,7 +245,6 @@ class Assistant(object):
 
     def _validate_QRcode_ticket(self, ticket):
         url = 'https://passport.jd.com/uc/qrCodeTicketValidation'
-        self.headers['Host'] = 'passport.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/uc/login?ltype=logout'
         resp = self.sess.get(url=url, headers=self.headers, params={'t': ticket})
 
@@ -304,7 +295,6 @@ class Assistant(object):
 
     def _get_reserve_url(self, sku_id):
         url = 'https://yushou.jd.com/youshouinfo.action'
-        self.headers['Host'] = 'yushou.jd.com'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         payload = {
             'callback': 'fetchJSON',
@@ -321,7 +311,6 @@ class Assistant(object):
         if not reserve_url:
             print(get_current_time(), '{} 非预约商品'.format(sku_id))
             return
-        self.headers['Host'] = 'yushou.jd.com'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         resp = self.sess.get(url=reserve_url, headers=self.headers)
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -331,8 +320,6 @@ class Assistant(object):
 
     def get_user_info(self):
         url = 'https://passport.jd.com/user/petName/getUserInfoForMiniJd.action'
-        self.headers['Host'] = 'passport.jd.com'
-        self.headers['Referer'] = 'https://www.jd.com/'
         payload = {
             'callback': 'jsonpUserinfo',
             '_': str(int(time.time() * 1000)),
@@ -352,8 +339,7 @@ class Assistant(object):
 
     def _get_item_detail_page(self, sku_id):
         url = 'https://item.jd.com/{}.html'.format(sku_id)
-        self.headers['Host'] = 'item.jd.com'
-        page = self.sess.get(url=url, headers=self.headers)
+        page = requests.get(url=url, headers=self.headers)
         return page
 
     def get_item_stock_state(self, sku_id='5089267', area='12_904_3375'):
@@ -376,7 +362,6 @@ class Assistant(object):
             'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
             # 'venderId': ''  # won't return seller information without this param (can be ignored)
         }
-        self.headers['Host'] = 'c0.3.cn'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         resp = requests.get(url=url, params=payload, headers=self.headers)
 
@@ -468,7 +453,7 @@ class Assistant(object):
         url = 'https://cart.jd.com/cart.action'
         cart_detail_format = '商品名称:{0}----单价:{1}----数量:{2}----总价:{3}'
         try:
-            resp = self.sess.get(url)
+            resp = self.sess.get(url=url)
             if not response_status(resp):
                 print(get_current_time(), '获取购物车信息失败')
                 return
@@ -632,7 +617,6 @@ class Assistant(object):
             'd': 1,
             's': 4096,
         }  # Orders for nearly three months
-        self.headers['Host'] = 'order.jd.com'
         self.headers['Referer'] = 'https://passport.jd.com/uc/login?ltype=logout'
 
         try:
