@@ -259,6 +259,9 @@ class Assistant(object):
             return False
 
     def login_by_QRcode(self):
+        """二维码登陆
+        :return:
+        """
         if self.is_login:
             print(get_current_time(), '登录成功')
             return True
@@ -307,6 +310,10 @@ class Assistant(object):
         return 'https:' + reserve_url if reserve_url else None
 
     def make_reserve(self, sku_id):
+        """商品预约
+        :param sku_id: 商品id
+        :return:
+        """
         reserve_url = self._get_reserve_url(sku_id)
         if not reserve_url:
             print(get_current_time(), '{} 非预约商品'.format(sku_id))
@@ -319,6 +326,9 @@ class Assistant(object):
         print(get_current_time(), reserve_result)
 
     def get_user_info(self):
+        """获取用户信息
+        :return: 用户名
+        """
         url = 'https://passport.jd.com/user/petName/getUserInfoForMiniJd.action'
         payload = {
             'callback': 'jsonpUserinfo',
@@ -338,11 +348,20 @@ class Assistant(object):
             return ''
 
     def _get_item_detail_page(self, sku_id):
+        """访问商品详情页
+        :param sku_id: 商品id
+        :return: 响应
+        """
         url = 'https://item.jd.com/{}.html'.format(sku_id)
         page = requests.get(url=url, headers=self.headers)
         return page
 
     def get_item_stock_state(self, sku_id='5089267', area='12_904_3375'):
+        """获取商品库存状态
+        :param sku_id: 商品id
+        :param area: 地区id
+        :return: 库存状态元祖：(33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
+        """
         cat = self.item_cat.get(sku_id)
         if not cat:
             page = self._get_item_detail_page(sku_id)
@@ -382,7 +401,11 @@ class Assistant(object):
         # 现货（33）和可配货（40）均可以下单
         return True if stock_code == 33 or stock_code == 40 else False
 
-    def get_item_price(self, sku_id='5089267'):
+    def get_item_price(self, sku_id):
+        """获取商品价格
+        :param sku_id: 商品id
+        :return: 价格
+        """
         url = 'http://p.3.cn/prices/mgets'
         payload = {
             'type': 1,
@@ -394,10 +417,17 @@ class Assistant(object):
         return js['p']
 
     def add_item_to_cart(self, sku_id='862576', count=1):
-        # if user add a item to shopping cart, it will be checked (or selected) by default
-        # user can uncheck/check a item, which would make a post request to jd server to record
-        # all checked items will be sent to checkout page
-        # some items can't add to cart such as pre sale
+        """添加商品到购物车
+
+        重要：
+        1.商品添加到购物车后将会自动被勾选✓中。
+        2.在提交订单时会对勾选的商品进行结算。
+        3.部分商品（如预售）无法添加到购物车
+
+        :param sku_id: 商品id
+        :param count: 商品数量
+        :return: 添加购物车结果 True/False
+        """
         url = 'https://cart.jd.com/gate.action'
         payload = {
             'pid': sku_id,
@@ -470,6 +500,13 @@ class Assistant(object):
             print(get_current_time(), e)
 
     def get_checkout_page_detail(self):
+        """访问订单结算页面
+
+        该方法会打印出订单结算页面的详细信息：商品名称、价格、数量、库存状态等。
+        如果只是想下单商品，可以不调用该方法。
+
+        :return:
+        """
         url = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
         # url = 'https://cart.jd.com/gotoOrder.action'
         payload = {
@@ -486,7 +523,7 @@ class Assistant(object):
 
             print('************************订单结算页详情************************')
             items = soup.select('div.goods-list div.goods-items')[1:]
-            checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存:{3}'
+            checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存状态:{3}'
             for item in items:
                 name = get_tag_value(item.select('div.p-name a'))
                 div_tag = item.select('div.p-price')[0]
@@ -504,11 +541,13 @@ class Assistant(object):
             print(get_current_time(), e)
 
     def submit_order(self):
-        """提交商品订单
+        """提交订单
 
-        重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
+        重要：
+        1.该方法只适用于普通商品的提交订单（即可以加入购物车，然后结算提交订单的商品）
+        2.提交订单时，会对购物车中勾选✓的商品进行结算（如果勾选了多个商品，将会提交成一个订单）
 
-        :return: 订单提交结果 True/False
+        :return: True/False 订单提交结果
         """
         if not self.is_login:
             print(get_current_time(), '请先登录再提交订单！')
