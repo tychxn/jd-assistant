@@ -10,6 +10,7 @@ import pickle
 from bs4 import BeautifulSoup
 
 from jd_tools import *
+from timer import Timer
 
 
 class Assistant(object):
@@ -603,23 +604,17 @@ class Assistant(object):
             print(get_current_time(), '请先登录再定时下单！')
             return
 
-        # '2018-09-28 22:45:50.000'
-        buy_time = datetime.strptime(buy_time, "%Y-%m-%d %H:%M:%S.%f")
-        print(get_current_time(), '正在等待下单……')
+        t = Timer(buy_time=buy_time)
+        t.start()
 
-        now_time = datetime.now
-        count = 1
-        while True:
-            if retry <= 0:
+        for count in range(1, retry + 1):
+            print(get_current_time(), '第[{0}/{1}]次尝试提交订单……'.format(count, retry))
+            if self.submit_order():
                 break
-            if now_time() >= buy_time:
-                print(get_current_time(), '第%s次尝试下单……' % count)
-                if self.submit_order():
-                    break
-                else:
-                    retry -= 1
-                    count += 1
-                    time.sleep(interval)
+            print(get_current_time(), '休息{0}s……'.format(interval))
+            time.sleep(interval)
+        else:
+            print(get_current_time(), '执行结束，提交订单失败！')
 
     def submit_order_by_stock(self, sku_id, area, interval=3):
         """当商品有库存时提交订单
@@ -882,11 +877,38 @@ class Assistant(object):
         :param interval: 抢购执行间隔，可选参数，默认4秒
         :return:
         """
-        for _ in range(retry):
+        for count in range(1, retry + 1):
+            print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id)
             if self.submit_seckill_order(sku_id):
                 break
+            print(get_current_time(), '休息{0}s……'.format(interval))
             time.sleep(interval)
+        else:
+            print(get_current_time(), '执行结束，抢购失败！')
 
-        print(get_current_time(), '抢购流程执行完毕！')
+    def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4):
+        """定时抢购
+        :param sku_id: 商品id
+        :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
+        :param retry: 抢购重复执行次数，可选参数，默认4次
+        :param interval: 抢购执行间隔，可选参数，默认4秒
+        :return:
+        """
+        print(get_current_time(), '准备抢购商品:%s' % sku_id)
+
+        # '2018-09-28 22:45:50.000'
+        t = Timer(buy_time=buy_time)
+        t.start()
+
+        for count in range(1, retry + 1):
+            print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
+            self.request_seckill_url(sku_id)
+            self.request_seckill_checkout_page(sku_id)
+            if self.submit_seckill_order(sku_id):
+                break
+            print(get_current_time(), '休息{0}s……'.format(interval))
+            time.sleep(interval)
+        else:
+            print(get_current_time(), '执行结束，抢购失败！')
