@@ -29,8 +29,8 @@ class Assistant(object):
         self.eid = 'UHU6KVDJS7PNLJUHG2ICBFACVLMEXVPQUGIK2QVXYMSN45BIEMUSICVLTYQYOZYZN2KWHV3WQWMFH4QPED2DVQHUXE'
         self.fp = '536e2679b85ddea9baccc7b705f2f8e0'
 
-        self.default_addr = None
-        self.seckill_data = None
+        self.seckill_init_info = None
+        self.seckill_order_data = None
         self.seckill_url = ''
         try:
             self._load_cookies()
@@ -770,65 +770,69 @@ class Assistant(object):
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         self.sess.get(url=url, params=payload, headers=self.headers)
 
-    def _get_default_address(self, sku_id):
-        """获取用户默认下单地址
-        :param sku_id: 商品id
-        :return: 用户默认地址信息组成的dict
+    def _get_seckill_init_info(self, sku_id):
+        """获取秒杀初始化信息（包括：地址，发票，token）
+        :param sku_id:
+        :return: 初始化信息组成的dict
         """
-        url = 'https://marathon.jd.com/async/getUsualAddressList.action'
-        payload = {
-            'skuId': sku_id,
-            'yuyue': ''
+        url = 'https://marathon.jd.com/seckillnew/orderService/pc/init.action'
+        data = {
+            'sku': sku_id,
+            'num': 1,
+            'isModifyAddress': 'false',
         }
         self.headers['Host'] = 'marathon.jd.com'
-        resp = self.sess.get(url=url, params=payload, headers=self.headers)
+        resp = self.sess.post(url=url, data=data, headers=self.headers)
+        return parse_json(resp.text)
 
-        # 常用地址列表，第一个为默认地址
-        usual_addr_list = json.loads(resp.text)
-        return usual_addr_list[0]
-
-    def _gen_seckill_order_param(self, sku_id):
+    def _gen_seckill_order_data(self, sku_id):
         """生成提交抢购订单所需的请求体参数
         :param sku_id: 商品id
         :return: 请求体参数组成的dict
         """
 
-        # 获取用户默认下单地址
-        self.default_addr = self._get_default_address(sku_id) if not self.default_addr else self.default_addr
+        # 获取用户秒杀初始化信息
+        if not self.seckill_init_info:
+            self.seckill_init_info = self._get_seckill_init_info(sku_id)
+
+        default_address = self.seckill_init_info['addressList'][0]  # 默认地址dict
+        invoice_info = self.seckill_init_info['invoiceInfo']  # 默认发票信息dict
+        token = self.seckill_init_info['token']
 
         data = {
-            'orderParam.name': self.default_addr.get('name'),
-            'orderParam.addressDetail': self.default_addr.get('addressDetail'),
-            'orderParam.mobile': self.default_addr.get('mobileWithXing'),
-            'orderParam.email': '',
-            'orderParam.provinceId': self.default_addr.get('provinceId'),
-            'orderParam.cityId': self.default_addr.get('cityId'),
-            'orderParam.countyId': self.default_addr.get('countyId'),
-            'orderParam.townId': self.default_addr.get('townId'),
-            'orderParam.paymentType': 4,
-            'orderParam.password': '',
-            'orderParam.invoiceTitle': 4,
-            'orderParam.invoiceContent': 1,
-            'orderParam.invoiceCompanyName': '',
-            'orderParam.invoiceTaxpayerNO': '',
-            'orderParam.invoiceEmail': '',
-            'orderParam.invoicePhone': self.default_addr.get('mobileWithXing'),
-            'orderParam.usualAddressId': self.default_addr.get('id'),
             'skuId': sku_id,
             'num': 1,
-            'orderParam.provinceName': self.default_addr.get('provinceName'),
-            'orderParam.cityName': self.default_addr.get('cityName'),
-            'orderParam.countyName': self.default_addr.get('countyName'),
-            'orderParam.townName': self.default_addr.get('townName'),
-            'orderParam.codTimeType': 3,
-            'orderParam.mobileKey': self.default_addr.get('mobileKey'),
+            'addressId': default_address['id'],
+            'yuShou': 'false',
+            'isModifyAddress': 'false',
+            'name': default_address['name'],
+            'provinceId': default_address['provinceId'],
+            'cityId': default_address['cityId'],
+            'countyId': default_address['countyId'],
+            'townId': default_address['townId'],
+            'addressDetail': default_address['addressDetail'],
+            'mobile': default_address['mobile'],
+            'mobileKey': default_address['mobileKey'],
+            'email': default_address['email'],
+            'postCode': '',
+            'invoiceTitle': invoice_info.get('invoiceTitle'),
+            'invoiceCompanyName': '',
+            'invoiceContent': invoice_info.get('invoiceContentType'),
+            'invoiceTaxpayerNO': '',
+            'invoiceEmail': '',
+            'invoicePhone': invoice_info.get('invoicePhone'),
+            'invoicePhoneKey': invoice_info.get('invoicePhoneKey'),
+            'invoice': 'true',
+            'password': '',
+            'codTimeType': 3,
+            'paymentType': 4,
+            'areaCode': '',
+            'overseas': 0,
+            'phone': '',
             'eid': self.eid,
             'fp': self.fp,
-            'addressMD5': self.default_addr.get('md5'),
-            'yuyue': '',
-            'yuyueAddress': 0,
+            'token': token,
         }
-
         return data
 
     def submit_seckill_order(self, sku_id):
@@ -836,31 +840,37 @@ class Assistant(object):
         :param sku_id: 商品id
         :return: 抢购结果 True/False
         """
-        url = 'https://marathon.jd.com/seckill/submitOrder.action'
+        url = 'https://marathon.jd.com/seckillnew/orderService/pc/submitOrder.action?skuId=100001036246'
         payload = {
             'skuId': sku_id,
-            'vid': ''
         }
-        self.seckill_data = self._gen_seckill_order_param(sku_id) if not self.seckill_data else self.seckill_data
+        if not self.seckill_order_data:
+            self.seckill_order_data = self._gen_seckill_order_data(sku_id)
         self.headers['Host'] = 'marathon.jd.com'
         self.headers['Referer'] = 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num=1&rid={1}'\
             .format(sku_id, int(time.time()))
-        resp = self.sess.post(url=url, params=payload, data=self.seckill_data, headers=self.headers)
+        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data, headers=self.headers)
+        js = parse_json(resp.text)
+        # 返回信息
+        # 抢购失败：
+        # {'errorMessage': '很遗憾没有抢到，再接再厉哦。', 'orderId': 0, 'resultCode': 60074, 'skuId': 0, 'success': False}
+        # {'errorMessage': '抱歉，您提交过快，请稍后再提交订单！', 'orderId': 0, 'resultCode': 60017, 'skuId': 0, 'success': False}
+        # 抢购成功：
+        # {"appUrl":"xxxxx","orderId":820227xxxxx,"pcUrl":"xxxxx","resultCode":0,"skuId":0,"success":true,"totalMoney":"xxxxx"}
 
-        # 抢购返回信息：
-        # //marathon.jd.com/koFail.html?reason=
-        # //sko.jd.com/success/success.action?orderId=81511218799&rid=0.1877352502777856
-        message_url = resp.text
-        if 'success' in message_url:
-            order_id = dict(parse.parse_qsl(parse.urlsplit(message_url).query)).get('orderId')
-            print(get_current_time(), '抢购成功，订单号：{}'.format(order_id))
+        if js.get('success'):
+            order_id = js.get('orderId')
+            total_money = js.get('totalMoney')
+            pay_url = 'https:' + js.get('pcUrl')
+            print(get_current_time(), '抢购成功，订单号: {0}, 总价: {1}, 电脑端付款链接: {2}'
+                  .format(order_id, total_money, pay_url))
             return True
         else:
-            print(get_current_time(), '抢购失败，返回信息：{}'.format(parse.unquote(message_url)))
+            print(get_current_time(), '抢购失败，返回信息: {}'.format(js))
             return False
 
     def exec_seckill(self, sku_id, retry=4, interval=4):
-        """执行抢购
+        """立即抢购
 
         抢购商品的下单流程与普通商品不同，不支持加入购物车，主要执行流程如下：
         1. 访问商品的抢购链接
