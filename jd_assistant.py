@@ -791,7 +791,7 @@ class Assistant(object):
             self.seckill_init_info = self._get_seckill_init_info(sku_id)
 
         default_address = self.seckill_init_info['addressList'][0]  # 默认地址dict
-        invoice_info = self.seckill_init_info['invoiceInfo']  # 默认发票信息dict
+        invoice_info = self.seckill_init_info.get('invoiceInfo', {})  # 默认发票信息dict, 有可能不返回
         token = self.seckill_init_info['token']
 
         data = {
@@ -808,16 +808,16 @@ class Assistant(object):
             'addressDetail': default_address['addressDetail'],
             'mobile': default_address['mobile'],
             'mobileKey': default_address['mobileKey'],
-            'email': default_address['email'],
+            'email': default_address.get('email', ''),
             'postCode': '',
-            'invoiceTitle': invoice_info.get('invoiceTitle'),
+            'invoiceTitle': invoice_info.get('invoiceTitle', -1),
             'invoiceCompanyName': '',
-            'invoiceContent': invoice_info.get('invoiceContentType'),
+            'invoiceContent': invoice_info.get('invoiceContentType', 1),
             'invoiceTaxpayerNO': '',
             'invoiceEmail': '',
-            'invoicePhone': invoice_info.get('invoicePhone'),
-            'invoicePhoneKey': invoice_info.get('invoicePhoneKey'),
-            'invoice': 'true',
+            'invoicePhone': invoice_info.get('invoicePhone', ''),
+            'invoicePhoneKey': invoice_info.get('invoicePhoneKey', ''),
+            'invoice': 'true' if invoice_info else 'false',
             'password': '',
             'codTimeType': 3,
             'paymentType': 4,
@@ -835,7 +835,7 @@ class Assistant(object):
         :param sku_id: 商品id
         :return: 抢购结果 True/False
         """
-        url = 'https://marathon.jd.com/seckillnew/orderService/pc/submitOrder.action?skuId=100001036246'
+        url = 'https://marathon.jd.com/seckillnew/orderService/pc/submitOrder.action'
         payload = {
             'skuId': sku_id,
         }
@@ -850,6 +850,7 @@ class Assistant(object):
         # 抢购失败：
         # {'errorMessage': '很遗憾没有抢到，再接再厉哦。', 'orderId': 0, 'resultCode': 60074, 'skuId': 0, 'success': False}
         # {'errorMessage': '抱歉，您提交过快，请稍后再提交订单！', 'orderId': 0, 'resultCode': 60017, 'skuId': 0, 'success': False}
+        # {'errorMessage': '系统正在开小差，请重试~~', 'orderId': 0, 'resultCode': 90013, 'skuId': 0, 'success': False}
         # 抢购成功：
         # {"appUrl":"xxxxx","orderId":820227xxxxx,"pcUrl":"xxxxx","resultCode":0,"skuId":0,"success":true,"totalMoney":"xxxxx"}
 
