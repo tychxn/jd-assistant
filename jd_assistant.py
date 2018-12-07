@@ -750,39 +750,42 @@ class Assistant(object):
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         self.sess.get(url=self.seckill_url, headers=self.headers, allow_redirects=False)
 
-    def request_seckill_checkout_page(self, sku_id):
+    def request_seckill_checkout_page(self, sku_id, num=1):
         """访问抢购订单结算页面
         :param sku_id: 商品id
+        :param num: 购买数量，可选参数，默认1个
         :return:
         """
         url = 'https://marathon.jd.com/seckill/seckill.action'
         payload = {
             'skuId': sku_id,
-            'num': 1,
+            'num': num,
             'rid': int(time.time())
         }
         self.headers['Host'] = 'marathon.jd.com'
         self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         self.sess.get(url=url, params=payload, headers=self.headers)
 
-    def _get_seckill_init_info(self, sku_id):
+    def _get_seckill_init_info(self, sku_id, num=1):
         """获取秒杀初始化信息（包括：地址，发票，token）
         :param sku_id:
+        :param num: 购买数量，可选参数，默认1个
         :return: 初始化信息组成的dict
         """
         url = 'https://marathon.jd.com/seckillnew/orderService/pc/init.action'
         data = {
             'sku': sku_id,
-            'num': 1,
+            'num': num,
             'isModifyAddress': 'false',
         }
         self.headers['Host'] = 'marathon.jd.com'
         resp = self.sess.post(url=url, data=data, headers=self.headers)
         return parse_json(resp.text)
 
-    def _gen_seckill_order_data(self, sku_id):
+    def _gen_seckill_order_data(self, sku_id, num=1):
         """生成提交抢购订单所需的请求体参数
         :param sku_id: 商品id
+        :param num: 购买数量，可选参数，默认1个
         :return: 请求体参数组成的dict
         """
 
@@ -796,7 +799,7 @@ class Assistant(object):
 
         data = {
             'skuId': sku_id,
-            'num': 1,
+            'num': num,
             'addressId': default_address['id'],
             'yuShou': 'false',
             'isModifyAddress': 'false',
@@ -830,9 +833,10 @@ class Assistant(object):
         }
         return data
 
-    def submit_seckill_order(self, sku_id):
+    def submit_seckill_order(self, sku_id, num=1):
         """提交抢购（秒杀）订单
         :param sku_id: 商品id
+        :param num: 购买数量，可选参数，默认1个
         :return: 抢购结果 True/False
         """
         url = 'https://marathon.jd.com/seckillnew/orderService/pc/submitOrder.action'
@@ -840,10 +844,10 @@ class Assistant(object):
             'skuId': sku_id,
         }
         if not self.seckill_order_data:
-            self.seckill_order_data = self._gen_seckill_order_data(sku_id)
+            self.seckill_order_data = self._gen_seckill_order_data(sku_id, num)
         self.headers['Host'] = 'marathon.jd.com'
-        self.headers['Referer'] = 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num=1&rid={1}'\
-            .format(sku_id, int(time.time()))
+        self.headers['Referer'] = 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}' \
+            .format(sku_id, num, int(time.time()))
         resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data, headers=self.headers)
         js = parse_json(resp.text)
         # 返回信息
@@ -865,7 +869,7 @@ class Assistant(object):
             print(get_current_time(), '抢购失败，返回信息: {}'.format(js))
             return False
 
-    def exec_seckill(self, sku_id, retry=4, interval=4):
+    def exec_seckill(self, sku_id, retry=4, interval=4, num=1):
         """立即抢购
 
         抢购商品的下单流程与普通商品不同，不支持加入购物车，主要执行流程如下：
@@ -876,25 +880,27 @@ class Assistant(object):
         :param sku_id: 商品id
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
+        :param num: 购买数量，可选参数，默认1个
         :return:
         """
         for count in range(1, retry + 1):
             print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
             self.request_seckill_url(sku_id)
-            self.request_seckill_checkout_page(sku_id)
-            if self.submit_seckill_order(sku_id):
+            self.request_seckill_checkout_page(sku_id, num)
+            if self.submit_seckill_order(sku_id, num):
                 break
             print(get_current_time(), '休息{0}s……'.format(interval))
             time.sleep(interval)
         else:
             print(get_current_time(), '执行结束，抢购失败！')
 
-    def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4):
+    def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
         """定时抢购
         :param sku_id: 商品id
         :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
+        :param num: 购买数量，可选参数，默认1个
         :return:
         """
         print(get_current_time(), '准备抢购商品:%s' % sku_id)
@@ -903,13 +909,4 @@ class Assistant(object):
         t = Timer(buy_time=buy_time)
         t.start()
 
-        for count in range(1, retry + 1):
-            print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
-            self.request_seckill_url(sku_id)
-            self.request_seckill_checkout_page(sku_id)
-            if self.submit_seckill_order(sku_id):
-                break
-            print(get_current_time(), '休息{0}s……'.format(interval))
-            time.sleep(interval)
-        else:
-            print(get_current_time(), '执行结束，抢购失败！')
+        self.exec_seckill(sku_id, retry, interval, num)
