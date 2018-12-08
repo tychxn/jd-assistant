@@ -16,6 +16,8 @@ AzWBmDMn8riHrDDNpUpJnlAGUqJG9ooPn8j7YNpcxCa1iybOlc2kEhmJn5uwoanQ
 q+CA6agNkqly2H4j6wIDAQAB
 -----END PUBLIC KEY-----"""
 
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+
 
 def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
     rsa_key = RSA.importKey(public_key)

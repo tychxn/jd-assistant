@@ -20,7 +20,7 @@ class Assistant(object):
         self.nick_name = ''
         self.is_login = False
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
+            'User-Agent': USER_AGENT,
         }
         self.sess = requests.session()
 
@@ -382,8 +382,11 @@ class Assistant(object):
             'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
             # 'venderId': ''  # won't return seller information without this param (can be ignored)
         }
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
-        resp = requests.get(url=url, params=payload, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        resp = requests.get(url=url, params=payload, headers=headers)
 
         js = parse_json(resp.text)
         stock_state = js['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
@@ -651,10 +654,13 @@ class Assistant(object):
             'd': 1,
             's': 4096,
         }  # Orders for nearly three months
-        self.headers['Referer'] = 'https://passport.jd.com/uc/login?ltype=logout'
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://passport.jd.com/uc/login?ltype=logout',
+        }
 
         try:
-            resp = self.sess.get(url=url, params=payload, headers=self.headers)
+            resp = self.sess.get(url=url, params=payload, headers=headers)
             if not response_status(resp):
                 print(get_current_time(), '获取订单页信息失败')
                 return
