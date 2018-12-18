@@ -29,6 +29,7 @@ class Assistant(object):
         self.risk_control = ''
         self.eid = 'UHU6KVDJS7PNLJUHG2ICBFACVLMEXVPQUGIK2QVXYMSN45BIEMUSICVLTYQYOZYZN2KWHV3WQWMFH4QPED2DVQHUXE'
         self.fp = '536e2679b85ddea9baccc7b705f2f8e0'
+        self.track_id = '9643cbd55bbbe103eef18a213e069eb0'
 
         self.seckill_init_info = None
         self.seckill_order_data = None
@@ -568,7 +569,9 @@ class Assistant(object):
             'submitOrderParam.btSupport': '0',
             'submitOrderParam.jxj': 1,
             'riskControl': self.risk_control,
-            'submitOrderParam.trackId': '9643cbd55bbbe103eef18a213e069eb0',  # Todo: need to get trackId
+            'submitOrderParam.trackId': self.track_id,  # Todo: need to get trackId
+            'submitOrderParam.eid': self.eid,
+            'submitOrderParam.fp': self.fp,
         }
         self.headers['Host'] = 'trade.jd.com'
         self.headers['Referer'] = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
