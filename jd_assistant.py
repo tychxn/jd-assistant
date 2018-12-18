@@ -240,7 +240,11 @@ class Assistant(object):
             'token': self.sess.cookies.get('wlfstk_smdl'),
             '_': str(int(time.time() * 1000)),
         }
-        resp = self.sess.get(url=url, headers=self.headers, params=payload)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://passport.jd.com/new/login.aspx',
+        }
+        resp = self.sess.get(url=url, headers=headers, params=payload)
 
         if not response_status(resp):
             print(get_current_time(), '获取二维码扫描结果出错')
