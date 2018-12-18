@@ -98,8 +98,11 @@ class Assistant(object):
             'uid': uuid,
             'yys': str(int(time.time() * 1000)),
         }
-        self.headers['Referer'] = 'https://passport.jd.com/uc/login'
-        resp = self.sess.get(url, params=payload, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://passport.jd.com/uc/login',
+        }
+        resp = self.sess.get(url, params=payload, headers=headers)
 
         if not response_status(resp):
             print('获取验证码失败')
@@ -161,8 +164,11 @@ class Assistant(object):
         data['authcode'] = auth_code
         data['loginname'] = username
         data['nloginpwd'] = encrypt_pwd(password)
-        self.headers['Origin'] = 'https://passport.jd.com'
-        resp = self.sess.post(url=login_url, data=data, headers=self.headers, params=payload)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Origin': 'https://passport.jd.com',
+        }
+        resp = self.sess.post(url=login_url, data=data, headers=headers, params=payload)
 
         if not response_status(resp):
             print(get_current_time(), '登录失败')
@@ -205,13 +211,16 @@ class Assistant(object):
 
     def _get_QRcode(self):
         url = 'https://qr.m.jd.com/show'
-        self.headers['Referer'] = 'https://passport.jd.com/new/login.aspx'
         payload = {
             'appid': 133,
             'size': 147,
             't': str(int(time.time() * 1000)),
         }
-        resp = self.sess.get(url=url, headers=self.headers, params=payload)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://passport.jd.com/new/login.aspx',
+        }
+        resp = self.sess.get(url=url, headers=headers, params=payload)
 
         if not response_status(resp):
             print(get_current_time(), '获取二维码失败')
@@ -247,8 +256,11 @@ class Assistant(object):
 
     def _validate_QRcode_ticket(self, ticket):
         url = 'https://passport.jd.com/uc/qrCodeTicketValidation'
-        self.headers['Referer'] = 'https://passport.jd.com/uc/login?ltype=logout'
-        resp = self.sess.get(url=url, headers=self.headers, params={'t': ticket})
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://passport.jd.com/uc/login?ltype=logout',
+        }
+        resp = self.sess.get(url=url, headers=headers, params={'t': ticket})
 
         if not response_status(resp):
             return False
@@ -300,12 +312,15 @@ class Assistant(object):
 
     def _get_reserve_url(self, sku_id):
         url = 'https://yushou.jd.com/youshouinfo.action'
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         payload = {
             'callback': 'fetchJSON',
-            'sku': sku_id
+            'sku': sku_id,
         }
-        resp = self.sess.get(url=url, params=payload, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        resp = self.sess.get(url=url, params=payload, headers=headers)
         js = parse_json(resp.text)
         # {"type":"1","hasAddress":false,"riskCheck":"0","flag":false,"num":941723,"stime":"2018-10-12 12:40:00","plusEtime":"","qiangEtime":"","showPromoPrice":"0","qiangStime":"","state":2,"sku":100000287121,"info":"\u9884\u7ea6\u8fdb\u884c\u4e2d","isJ":0,"address":"","d":48824,"hidePrice":"0","yueEtime":"2018-10-19 15:01:00","plusStime":"","isBefore":0,"url":"//yushou.jd.com/toYuyue.action?sku=100000287121&key=237af0174f1cffffd227a2f98481a338","etime":"2018-10-19 15:01:00","plusD":48824,"category":"4","plusType":0,"yueStime":"2018-10-12 12:40:00"};
         reserve_url = js.get('url')
@@ -320,8 +335,11 @@ class Assistant(object):
         if not reserve_url:
             print(get_current_time(), '{} 非预约商品'.format(sku_id))
             return
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
-        resp = self.sess.get(url=reserve_url, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        resp = self.sess.get(url=reserve_url, headers=headers)
         soup = BeautifulSoup(resp.text, "html.parser")
         reserve_result = soup.find('p', {'class': 'bd-right-result'}).text.strip(' \t\r\n')
         # 预约成功，已获得抢购资格 / 您已成功预约过了，无需重复预约
@@ -573,11 +591,14 @@ class Assistant(object):
             'submitOrderParam.eid': self.eid,
             'submitOrderParam.fp': self.fp,
         }
-        self.headers['Host'] = 'trade.jd.com'
-        self.headers['Referer'] = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'trade.jd.com',
+            'Referer': 'http://trade.jd.com/shopping/order/getOrderInfo.action',
+        }
 
         try:
-            resp = self.sess.post(url=url, data=data, headers=self.headers)
+            resp = self.sess.post(url=url, data=data, headers=headers)
             if not response_status(resp):
                 print(get_current_time(), '订单提交失败！')
                 return False
@@ -728,15 +749,18 @@ class Assistant(object):
         :return: 商品的抢购链接
         """
         url = 'https://itemko.jd.com/itemShowBtn'
-        self.headers['Host'] = 'itemko.jd.com'
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
         payload = {
             'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
             'skuId': sku_id,
             'from': 'pc',
             '_': str(int(time.time() * 1000)),
         }
-        resp = self.sess.get(url=url, headers=self.headers, params=payload)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'itemko.jd.com',
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        resp = self.sess.get(url=url, headers=headers, params=payload)
         js = parse_json(resp.text)
 
         # https://divide.jd.com/user_routing?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
@@ -755,9 +779,12 @@ class Assistant(object):
         :return:
         """
         self.seckill_url = self._get_seckill_url(sku_id) if not self.seckill_url else self.seckill_url
-        self.headers['Host'] = 'marathon.jd.com'
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
-        self.sess.get(url=self.seckill_url, headers=self.headers, allow_redirects=False)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'marathon.jd.com',
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        self.sess.get(url=self.seckill_url, headers=headers, allow_redirects=False)
 
     def request_seckill_checkout_page(self, sku_id, num=1):
         """访问抢购订单结算页面
@@ -771,9 +798,12 @@ class Assistant(object):
             'num': num,
             'rid': int(time.time())
         }
-        self.headers['Host'] = 'marathon.jd.com'
-        self.headers['Referer'] = 'https://item.jd.com/{}.html'.format(sku_id)
-        self.sess.get(url=url, params=payload, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'marathon.jd.com',
+            'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
+        }
+        self.sess.get(url=url, params=payload, headers=headers)
 
     def _get_seckill_init_info(self, sku_id, num=1):
         """获取秒杀初始化信息（包括：地址，发票，token）
@@ -787,8 +817,11 @@ class Assistant(object):
             'num': num,
             'isModifyAddress': 'false',
         }
-        self.headers['Host'] = 'marathon.jd.com'
-        resp = self.sess.post(url=url, data=data, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'marathon.jd.com',
+        }
+        resp = self.sess.post(url=url, data=data, headers=headers)
         return parse_json(resp.text)
 
     def _gen_seckill_order_data(self, sku_id, num=1):
@@ -854,10 +887,13 @@ class Assistant(object):
         }
         if not self.seckill_order_data:
             self.seckill_order_data = self._gen_seckill_order_data(sku_id, num)
-        self.headers['Host'] = 'marathon.jd.com'
-        self.headers['Referer'] = 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}' \
-            .format(sku_id, num, int(time.time()))
-        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data, headers=self.headers)
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Host': 'marathon.jd.com',
+            'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'
+                .format(sku_id, num, int(time.time())),
+        }
+        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data, headers=headers)
         js = parse_json(resp.text)
         # 返回信息
         # 抢购失败：
