@@ -228,7 +228,7 @@ class Assistant(object):
 
         QRCode_file = 'QRcode.png'
         save_image(resp, QRCode_file)
-        print(get_current_time(), '验证码获取成功，请打开京东APP扫描')
+        print(get_current_time(), '二维码获取成功，请打开京东APP扫描')
         open_image(QRCode_file)
         return True
 
@@ -452,7 +452,7 @@ class Assistant(object):
         3.部分商品（如预售）无法添加到购物车
 
         :param sku_id: 商品id
-        :param count: 商品数量
+        :param count: 商品数量，可选参数，默认1个
         :return: 添加购物车结果 True/False
         """
         url = 'https://cart.jd.com/gate.action'
