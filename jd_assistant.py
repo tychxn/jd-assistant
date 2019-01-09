@@ -355,21 +355,21 @@ class Assistant(object):
         """
         url = 'https://passport.jd.com/user/petName/getUserInfoForMiniJd.action'
         payload = {
-            'callback': 'jsonpUserinfo',
+            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
             '_': str(int(time.time() * 1000)),
         }
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://order.jd.com/center/list.action',
+        }
         try:
-            resp = self.sess.get(url=url, params=payload, headers=self.headers)
-            if not response_status(resp):
-                print(get_current_time(), '获取用户信息失败')
-                return ''
+            resp = self.sess.get(url=url, params=payload, headers=headers)
             js = parse_json(resp.text)
-            # {'lastLoginTime': '', 'userLevel': 5, 'userScoreVO': {'default': False, 'financeScore': 101, 'consumptionScore': 12063, 'activityScore': 36, 'totalScore': 12431, 'accountScore': 31, 'pin': 'xxx', 'riskScore': 4}, 'imgUrl': '//storage.360buyimg.com/i.imageUpload/xxx.jpg', 'plusStatus': '0', 'realName': 'xxx', 'nickName': 'xxx'}
             # many user info are included in response, now return nick name in it
+            # jQuery2381773({"imgUrl":"//storage.360buyimg.com/i.imageUpload/xxx.jpg","lastLoginTime":"","nickName":"xxx","plusStatus":"0","realName":"xxx","userLevel":x,"userScoreVO":{"accountScore":xx,"activityScore":xx,"consumptionScore":xxxxx,"default":false,"financeScore":xxx,"pin":"xxx","riskScore":x,"totalScore":xxxxx}})
             return js.get('nickName')
         except Exception as e:
-            print(get_current_time(), e)
-            return ''
+            return 'jd'
 
     def _get_item_detail_page(self, sku_id):
         """访问商品详情页
