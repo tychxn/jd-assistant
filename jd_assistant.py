@@ -699,12 +699,16 @@ class Assistant(object):
             table_bodies = order_table.select('tbody')
             exist_order = False
             for table_body in table_bodies:
+                # get order status
+                order_status = get_tag_value(table_body.select('span.order-status'))
+
                 # check if order is waiting for payment
-                wait_payment = bool(table_body.select('a.btn-pay'))
+                # wait_payment = bool(table_body.select('a.btn-pay'))
+                wait_payment = True if "等待付款" in order_status else False
 
                 # only show unpaid orders if unpaid=True
                 if unpaid and (not wait_payment):
-                    break
+                    continue
 
                 exist_order = True
 
@@ -721,13 +725,8 @@ class Assistant(object):
                     spans = amount_div.select('span')
                     pay_method = get_tag_value(spans, index=1)
                     # if the order is waiting for payment, the price after the discount is shown.
-                    if wait_payment:
-                        sum_price = get_tag_value(amount_div.select('strong'), index=1)[1:]
-                    else:
-                        sum_price = get_tag_value(spans, index=0)[4:]
-
-                # get order status
-                order_status = get_tag_value(table_body.select('span.order-status'))
+                    sum_price = get_tag_value(amount_div.select('strong'), index=1)[1:] if wait_payment \
+                        else get_tag_value(spans, index=0)[4:]
 
                 # get name and quantity of items in order
                 items_dict = dict()  # {'item_id_1': quantity_1, 'item_id_2': quantity_2, ...}
@@ -740,6 +739,7 @@ class Assistant(object):
                     quantity = get_tag_value(tr_bd.select('div.goods-number'))[1:]
                     items_dict[item_id] = quantity
                 order_info_format = '订单号:{0}----下单时间:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
+
                 print(order_info_format.format(order_id, deal_time, parse_items_dict(items_dict), order_status, sum_price, pay_method))
 
             if not exist_order:
