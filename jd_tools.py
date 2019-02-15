@@ -26,6 +26,10 @@ def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
     return cipher.decode('utf-8')
 
 
+def encrypt_payment_pwd(payment_pwd):
+    return ''.join(['u3' + x for x in payment_pwd])
+
+
 def response_status(resp):
     if resp.status_code != requests.codes.OK:
         print('Status: %u, Url: %s' % (resp.status_code, resp.url))
