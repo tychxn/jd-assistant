@@ -18,7 +18,7 @@ class Timer(object):
         now_time = datetime.now
         while True:
             if now_time() >= self.buy_time:
-                print(get_current_time(), '时间达到，开始执行……')
+                print(get_current_time(), '时间到达，开始执行……')
                 break
             else:
                 time.sleep(self.sleep_interval)
