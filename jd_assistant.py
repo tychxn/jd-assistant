@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 import re
 import random
-from datetime import datetime
-from urllib import parse
 
 import requests
 import pickle
@@ -681,10 +679,10 @@ class Assistant(object):
         while True:
             if self.if_item_in_stock(sku_id=sku_id, area=area):
                 print(get_current_time(), '%s有货了，正在提交订单……' % sku_id)
-                self.submit_order()
-                break
+                if self.submit_order():
+                    break
             else:
-                print(get_current_time(), '%s无货，准备下一次查询……' % sku_id)
+                print(get_current_time(), '%s无货，准备下一次查询' % sku_id)
                 time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
@@ -759,8 +757,9 @@ class Assistant(object):
                     quantity = get_tag_value(tr_bd.select('div.goods-number'))[1:]
                     items_dict[item_id] = quantity
 
-                order_info_format = '订单号:{0}----下单时间:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
-                print(order_info_format.format(order_id, deal_time, parse_items_dict(items_dict), order_status, sum_price, pay_method))
+                order_info_format = '下单时间:{0}----订单号:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
+                print(order_info_format.format(deal_time, order_id, parse_items_dict(items_dict), order_status,
+                                               sum_price, pay_method))
 
             if not exist_order:
                 print(get_current_time(), '订单查询为空')
@@ -957,18 +956,20 @@ class Assistant(object):
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
         :param num: 购买数量，可选参数，默认1个
-        :return:
+        :return: 抢购结果 True/False
         """
         for count in range(1, retry + 1):
             print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id, num)
             if self.submit_seckill_order(sku_id, num):
-                break
-            print(get_current_time(), '休息{0}s……'.format(interval))
-            time.sleep(interval)
+                return True
+            else:
+                print(get_current_time(), '休息{0}s……'.format(interval))
+                time.sleep(interval)
         else:
             print(get_current_time(), '执行结束，抢购失败！')
+            return False
 
     def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
         """定时抢购
