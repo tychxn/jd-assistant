@@ -610,9 +610,6 @@ class Assistant(object):
 
         try:
             resp = self.sess.post(url=url, data=data, headers=headers)
-            if not response_status(resp):
-                print(get_current_time(), '订单提交失败！')
-                return False
             js = json.loads(resp.text)
 
             # 返回信息示例：
@@ -626,13 +623,15 @@ class Assistant(object):
             # {'overSea': False, 'orderXml': None, 'cartXml': None, 'noStockSkuIds': '', 'reqInfo': None, 'hasJxj': False, 'addedServiceList': None, 'sign': None, 'pin': 'xxx', 'needCheckCode': False, 'success': True, 'resultCode': 0, 'orderId': 8740xxxxx, 'submitSkuNum': 1, 'deductMoneyFlag': 0, 'goJumpOrderCenter': False, 'payInfo': None, 'scaleSkuInfoListVO': None, 'purchaseSkuInfoListVO': None, 'noSupportHomeServiceSkuList': None, 'msgMobile': None, 'addressVO': None, 'msgUuid': None, 'message': None}
 
             if js.get('success'):
-                # {"message":null,"sign":null,"pin":"xxx","resultCode":0,"addressVO":null,"needCheckCode":false,"orderId": xxxx,"submitSkuNum":1,"deductMoneyFlag":0,"goJumpOrderCenter":false,"payInfo":null,"scaleSkuInfoListVO":null,"purchaseSkuInfoListVO":null,"noSupportHomeServiceSkuList":null,"success":true,"overSea":false,"orderXml":null,"cartXml":null,"noStockSkuIds":"","reqInfo":null,"hasJxj":false,"addedServiceList":null}
-                order_id = js.get('orderId')
-                item_num = js.get('submitSkuNum')
-                print(get_current_time(), '订单提交成功! 订单号：{0}'.format(order_id))
+                print(get_current_time(), '订单提交成功! 订单号：{0}'.format(js.get('orderId')))
                 return True
             else:
-                print(get_current_time(), '订单提交失败, 返回信息：{0}'.format(js.get('message', '')))
+                message, result_code = js.get('message'), js.get('resultCode')
+                if result_code == 60077:
+                    message = message + '(可能是购物车为空 或 未勾选购物车中商品)'
+                elif result_code == 60123:
+                    message = message + '(需要在config.ini文件中配置支付密码)'
+                print(get_current_time(), '订单提交失败, 错误码：{0}, 返回信息：{1}'.format(result_code, message))
                 print(get_current_time(), js)
                 return False
         except Exception as e:
@@ -730,9 +729,9 @@ class Assistant(object):
 
                 exist_order = True
 
-                # get deal_time, order_id
+                # get order_time, order_id
                 tr_th = table_body.select('tr.tr-th')[0]
-                deal_time = get_tag_value(tr_th.select('span.dealtime'))
+                order_time = get_tag_value(tr_th.select('span.dealtime'))
                 order_id = get_tag_value(tr_th.select('span.number a'))
 
                 # get sum_price, pay_method
@@ -758,7 +757,7 @@ class Assistant(object):
                     items_dict[item_id] = quantity
 
                 order_info_format = '下单时间:{0}----订单号:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
-                print(order_info_format.format(deal_time, order_id, parse_items_dict(items_dict), order_status,
+                print(order_info_format.format(order_time, order_id, parse_items_dict(items_dict), order_status,
                                                sum_price, pay_method))
 
             if not exist_order:
