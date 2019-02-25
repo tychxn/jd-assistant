@@ -789,8 +789,8 @@ class Assistant(object):
                 print(get_current_time(), "抢购链接获取成功")
                 break
             else:
-                print(get_current_time(), "抢购链接获取失败，{0}不是抢购商品或抢购页面暂未刷新，3秒后重试".format(sku_id))
-                time.sleep(3)
+                print(get_current_time(), "抢购链接获取失败，{0}不是抢购商品或抢购页面暂未刷新，1秒后重试".format(sku_id))
+                time.sleep(1)
 
         # https://divide.jd.com/user_routing?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
         router_url = 'https:' + js.get('url')
