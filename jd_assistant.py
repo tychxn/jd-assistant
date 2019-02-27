@@ -381,7 +381,7 @@ class Assistant(object):
         page = requests.get(url=url, headers=self.headers)
         return page
 
-    def get_item_stock_state(self, sku_id, area):
+    def get_single_item_stock(self, sku_id, area):
         """获取单个商品库存状态
         :param sku_id: 商品id
         :param area: 地区id
@@ -417,7 +417,7 @@ class Assistant(object):
         stock_state_name = js['stock']['StockStateName']
         return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
 
-    def batch_get_item_stock_state(self, sku_ids, area):
+    def get_multi_item_stock(self, sku_ids, area):
         """获取多个商品库存状态
 
         该方法需要登陆才能调用，用于同时查询多个商品的库存。
@@ -477,10 +477,10 @@ class Assistant(object):
         """
         sku_ids = get_sku_id_list(sku_ids=sku_ids)
         if len(sku_ids) > 1:  # 多个商品同时查询库存
-            return self.batch_get_item_stock_state(sku_ids=sku_ids, area=area)
+            return self.get_multi_item_stock(sku_ids=sku_ids, area=area)
 
         # 单个商品查询库存
-        stock_code = self.get_item_stock_state(sku_ids[0], area)[0]  # 库存状态码
+        stock_code = self.get_single_item_stock(sku_ids[0], area)[0]  # 库存状态码
         return True if stock_code == 33 or stock_code == 40 else False  # 现货（33）和可配货（40）均可以下单
 
     def get_item_price(self, sku_id):
