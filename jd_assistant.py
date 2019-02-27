@@ -65,10 +65,12 @@ class Assistant(object):
         }
         try:
             resp = self.sess.get(url=url, params=payload, allow_redirects=False)
-            return True if resp.status_code == requests.codes.OK else False
+            if resp.status_code == requests.codes.OK:
+                return True
         except Exception as e:
             print(get_current_time(), e)
-            return False
+        self.sess = requests.session()
+        return False
 
     def _need_auth_code(self, username):
         url = 'https://passport.jd.com/uc/showAuthCode'
@@ -379,8 +381,8 @@ class Assistant(object):
         page = requests.get(url=url, headers=self.headers)
         return page
 
-    def get_item_stock_state(self, sku_id='5089267', area='12_904_3375'):
-        """获取商品库存状态
+    def get_item_stock_state(self, sku_id, area):
+        """获取单个商品库存状态
         :param sku_id: 商品id
         :param area: 地区id
         :return: 库存状态元祖：(33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
@@ -415,17 +417,71 @@ class Assistant(object):
         stock_state_name = js['stock']['StockStateName']
         return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
 
-    def if_item_in_stock(self, sku_id='5089267', area='12_904_3375'):
+    def batch_get_item_stock_state(self, sku_ids, area):
+        """获取多个商品库存状态
+
+        该方法需要登陆才能调用，用于同时查询多个商品的库存。
+        京东查询接口返回每种商品的状态：有货/无货。当所有商品都有货，返回True；否则，返回False。
+
+        :param sku_ids: 多个商品的id。可以传入中间用英文逗号的分割字符串，如"123,456"；或传入商品列表，如["123", "456"]
+        :param area: 地区id
+        :return: 多个商品是否同时有货 True/False
+        """
+        if not isinstance(sku_ids, list):
+            sku_ids = get_sku_id_list(sku_ids=sku_ids)
+
+        area_code = parse_area_id(area)
+
+        url = 'https://trade.jd.com/api/v1/batch/stock'
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Origin': 'https://trade.jd.com',
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Referer': 'https://trade.jd.com/shopping/order/getOrderInfo.action?rid=' + str(int(time.time() * 1000)),
+        }
+        data = {
+            "areaRequest": {
+                "provinceId": area_code[0],
+                "cityId": area_code[1],
+                "countyId": area_code[2],
+                "townId": area_code[3]
+            },
+            "skuNumList": []
+        }
+        for sku_id in sku_ids:
+            data['skuNumList'].append({
+                "skuId": sku_id,
+                "num": "1"
+            })
+        # convert to string
+        data = json.dumps(data)
+
+        resp = self.sess.post(url=url, headers=headers, data=data)
+        js = parse_json(resp.text)
+        result = js.get('result')
+
+        stock = True
+        for sku_id in result:
+            status = result.get(sku_id).get('status')
+            if '无货' in status:
+                stock = False
+                break
+
+        return stock
+
+    def if_item_in_stock(self, sku_ids, area):
         """判断商品是否有货
-        :param sku_id: 商品id
+        :param sku_ids: 商品id，多个商品的id的中间用英文逗号进行分割
         :param area: 地址id
         :return: 商品是否有货 True/False
         """
-        # 库存状态码
-        stock_code = self.get_item_stock_state(sku_id, area)[0]
+        sku_ids = get_sku_id_list(sku_ids=sku_ids)
+        if len(sku_ids) > 1:  # 多个商品同时查询库存
+            return self.batch_get_item_stock_state(sku_ids=sku_ids, area=area)
 
-        # 现货（33）和可配货（40）均可以下单
-        return True if stock_code == 33 or stock_code == 40 else False
+        # 单个商品查询库存
+        stock_code = self.get_item_stock_state(sku_ids[0], area)[0]  # 库存状态码
+        return True if stock_code == 33 or stock_code == 40 else False  # 现货（33）和可配货（40）均可以下单
 
     def get_item_price(self, sku_id):
         """获取商品价格
@@ -442,7 +498,7 @@ class Assistant(object):
         js = parse_json(resp.text)
         return js['p']
 
-    def add_item_to_cart(self, sku_id='862576', count=1):
+    def add_item_to_cart(self, sku_id, count=1):
         """添加商品到购物车
 
         重要：
@@ -676,7 +732,7 @@ class Assistant(object):
         :return:
         """
         while True:
-            if self.if_item_in_stock(sku_id=sku_id, area=area):
+            if self.if_item_in_stock(sku_ids=sku_id, area=area):
                 print(get_current_time(), '%s有货了，正在提交订单……' % sku_id)
                 if self.submit_order():
                     break
@@ -767,6 +823,10 @@ class Assistant(object):
 
     def _get_seckill_url(self, sku_id):
         """获取商品的抢购链接
+
+        点击"抢购"按钮后，会有两次302跳转，最后到达订单结算页面
+        这里返回第一次跳转后的页面url，作为商品的抢购链接
+
         :param sku_id: 商品id
         :return: 商品的抢购链接
         """
@@ -786,21 +846,15 @@ class Assistant(object):
             resp = self.sess.get(url=url, headers=headers, params=payload)
             js = parse_json(resp.text)
             if js.get('url'):
-                print(get_current_time(), "抢购链接获取成功")
-                break
+                # https://divide.jd.com/user_routing?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
+                router_url = 'https:' + js.get('url')
+                # https://marathon.jd.com/captcha.html?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
+                seckill_url = router_url.replace('divide', 'marathon').replace('user_routing', 'captcha.html')
+                print(get_current_time(), "抢购链接获取成功: {0}".format(seckill_url))
+                return seckill_url
             else:
                 print(get_current_time(), "抢购链接获取失败，{0}不是抢购商品或抢购页面暂未刷新，1秒后重试".format(sku_id))
                 time.sleep(1)
-
-        # https://divide.jd.com/user_routing?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
-        router_url = 'https:' + js.get('url')
-
-        # 点击"抢购"按钮后，会有两次302跳转，最后到达订单结算页面
-        # 这里返回第一次跳转后的页面url，作为商品的抢购链接
-        # https://marathon.jd.com/captcha.html?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
-        seckill_url = router_url.replace('divide', 'marathon').replace('user_routing', 'captcha.html')
-
-        return seckill_url
 
     def request_seckill_url(self, sku_id):
         """访问商品的抢购链接（用于设置cookie等）
@@ -958,7 +1012,7 @@ class Assistant(object):
         :return: 抢购结果 True/False
         """
         for count in range(1, retry + 1):
-            print(get_current_time(), '第[{0}/{1}]次尝试抢购……'.format(count, retry))
+            print(get_current_time(), '第[{0}/{1}]次尝试抢购商品:{2}'.format(count, retry, sku_id))
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id, num)
             if self.submit_seckill_order(sku_id, num):
@@ -967,7 +1021,7 @@ class Assistant(object):
                 print(get_current_time(), '休息{0}s……'.format(interval))
                 time.sleep(interval)
         else:
-            print(get_current_time(), '执行结束，抢购失败！')
+            print(get_current_time(), '执行结束，抢购{0}失败！'.format(sku_id))
             return False
 
     def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
@@ -981,7 +1035,6 @@ class Assistant(object):
         """
         print(get_current_time(), '准备抢购商品:%s' % sku_id)
 
-        # '2018-09-28 22:45:50.000'
         t = Timer(buy_time=buy_time)
         t.start()
 

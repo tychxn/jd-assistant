@@ -4,6 +4,7 @@ import os
 import time
 import json
 from base64 import b64encode
+from random import shuffle
 
 import requests
 from Crypto.PublicKey import RSA
@@ -79,3 +80,21 @@ def parse_items_dict(d):
         else:
             result = result + '{0} x {1}'.format(key, d[key])
     return result
+
+
+def get_sku_id_list(sku_ids, need_shuffle=False):
+    id_list = list(map(lambda x: x.strip(), sku_ids.split(',')))
+    id_list = list(filter(bool, id_list))  # remove empty
+    if need_shuffle:
+        shuffle(id_list)
+    return id_list
+
+
+def list_to_str(l):
+    return '[%s]' % ','.join(l)
+
+
+def parse_area_id(area_id='12_904_3375'):
+    area = list(area_id.split('_'))
+    area.extend((4 - len(area)) * ['0'])
+    return area
