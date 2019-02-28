@@ -19,6 +19,10 @@ q+CA6agNkqly2H4j6wIDAQAB
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
 
+DEFAULT_EID = 'D5GZVU5ZO5VBUFMLOUHMNHK2BXXVKI4ZQK3JKCOIB4PRERKTQXV3BNSG557BQLPVVT4ZN3NKVSXAKTVPJXDEPEBDGU'
+
+DEFAULT_FP = '18c7d83a053e6bbb51f755aea595bbb8'
+
 
 def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
     rsa_key = RSA.importKey(public_key)
@@ -82,12 +86,20 @@ def parse_items_dict(d):
     return result
 
 
-def get_sku_id_list(sku_ids, need_shuffle=False):
-    id_list = list(map(lambda x: x.strip(), sku_ids.split(',')))
-    id_list = list(filter(bool, id_list))  # remove empty
+def parse_sku_id(sku_ids, contain_count=False, need_shuffle=False):
+    sku_id_list = list(map(lambda x: x.strip(), sku_ids.split(',')))
+    sku_id_list = list(filter(bool, sku_id_list))  # remove empty
+
+    if contain_count or (':' in sku_ids):
+        sku_id_dict = dict()
+        for item in sku_id_list:
+            sku_id, count = map(lambda x: x.strip(), item.split(':'))
+            sku_id_dict[sku_id] = count
+        return sku_id_dict
+
     if need_shuffle:
-        shuffle(id_list)
-    return id_list
+        shuffle(sku_id_list)
+    return sku_id_list
 
 
 def list_to_str(l):

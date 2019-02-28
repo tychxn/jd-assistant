@@ -26,13 +26,14 @@ class Assistant(object):
         self.item_cat = dict()
 
         self.risk_control = ''
-        self.eid = 'UHU6KVDJS7PNLJUHG2ICBFACVLMEXVPQUGIK2QVXYMSN45BIEMUSICVLTYQYOZYZN2KWHV3WQWMFH4QPED2DVQHUXE'
-        self.fp = '536e2679b85ddea9baccc7b705f2f8e0'
+        self.eid = global_config.get('config', 'eid') or DEFAULT_EID
+        self.fp = global_config.get('config', 'fp') or DEFAULT_FP
         self.track_id = '9643cbd55bbbe103eef18a213e069eb0'
 
-        self.seckill_init_info = None
-        self.seckill_order_data = None
-        self.seckill_url = ''
+        self.seckill_init_info = dict()
+        self.seckill_order_data = dict()
+        self.seckill_url = dict()
+
         try:
             self._load_cookies()
         except Exception as e:
@@ -428,7 +429,7 @@ class Assistant(object):
         :return: 多个商品是否同时有货 True/False
         """
         if not isinstance(sku_ids, list):
-            sku_ids = get_sku_id_list(sku_ids=sku_ids)
+            sku_ids = parse_sku_id(sku_ids=sku_ids)
 
         area_code = parse_area_id(area)
 
@@ -475,7 +476,7 @@ class Assistant(object):
         :param area: 地址id
         :return: 商品是否有货 True/False
         """
-        sku_ids = get_sku_id_list(sku_ids=sku_ids)
+        sku_ids = parse_sku_id(sku_ids=sku_ids)
         if len(sku_ids) > 1:  # 多个商品同时查询库存
             return self.get_multi_item_stock(sku_ids=sku_ids, area=area)
 
@@ -498,7 +499,7 @@ class Assistant(object):
         js = parse_json(resp.text)
         return js['p']
 
-    def add_item_to_cart(self, sku_id, count=1):
+    def add_item_to_cart(self, sku_ids):
         """添加商品到购物车
 
         重要：
@@ -506,28 +507,34 @@ class Assistant(object):
         2.在提交订单时会对勾选的商品进行结算。
         3.部分商品（如预售）无法添加到购物车
 
-        :param sku_id: 商品id
-        :param count: 商品数量，可选参数，默认1个
-        :return: 添加购物车结果 True/False
+        :param sku_ids: 商品id，格式："123" 或 "123,456" 或 "123:1,456:2" 或 {"123":1, "456":2}。若不配置数量，默认为1个。
+        :return:
         """
         url = 'https://cart.jd.com/gate.action'
-        payload = {
-            'pid': sku_id,
-            'pcount': count,
-            'ptype': 1,
+        headers = {
+            'User-Agent': USER_AGENT,
         }
-        try:
-            resp = self.sess.get(url=url, params=payload)
+
+        # "123" or "123,456" or "123:1,456:2" or {"123":1, "456":2}
+        if isinstance(sku_ids, str):
+            if ':' in sku_ids:
+                sku_ids = parse_sku_id(sku_ids=sku_ids)
+            else:
+                sku_ids = {sku_id: 1 for sku_id in parse_sku_id(sku_ids=sku_ids)}
+
+        for sku_id, count in sku_ids.items():
+            payload = {
+                'pid': sku_id,
+                'pcount': count,
+                'ptype': 1,
+            }
+            resp = self.sess.get(url=url, params=payload, headers=headers)
             soup = BeautifulSoup(resp.text, "html.parser")
             tag = soup.select('h3.ftx-02')  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
             if not tag:
-                print(get_current_time(), '{}添加到购物车失败'.format(sku_id))
+                print(get_current_time(), '{0}添加到购物车失败'.format(sku_id))
                 return False
-            print(get_current_time(), '{}已成功加入购物车'.format(sku_id))
-            return True
-        except Exception as e:
-            print(get_current_time(), e)
-            return False
+            print(get_current_time(), '{0} x {1} 已成功加入购物车'.format(sku_id, count))
 
     def clear_cart(self):
         """清空购物车
@@ -861,13 +868,14 @@ class Assistant(object):
         :param sku_id: 商品id
         :return:
         """
-        self.seckill_url = self._get_seckill_url(sku_id) if not self.seckill_url else self.seckill_url
+        if not self.seckill_url.get(sku_id):
+            self.seckill_url[sku_id] = self._get_seckill_url(sku_id)
         headers = {
             'User-Agent': USER_AGENT,
             'Host': 'marathon.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
-        self.sess.get(url=self.seckill_url, headers=headers, allow_redirects=False)
+        self.sess.get(url=self.seckill_url.get(sku_id), headers=headers, allow_redirects=False)
 
     def request_seckill_checkout_page(self, sku_id, num=1):
         """访问抢购订单结算页面
@@ -915,12 +923,13 @@ class Assistant(object):
         """
 
         # 获取用户秒杀初始化信息
-        if not self.seckill_init_info:
-            self.seckill_init_info = self._get_seckill_init_info(sku_id)
+        if not self.seckill_init_info.get(sku_id):
+            self.seckill_init_info[sku_id] = self._get_seckill_init_info(sku_id)
 
-        default_address = self.seckill_init_info['addressList'][0]  # 默认地址dict
-        invoice_info = self.seckill_init_info.get('invoiceInfo', {})  # 默认发票信息dict, 有可能不返回
-        token = self.seckill_init_info['token']
+        init_info = self.seckill_init_info.get(sku_id)
+        default_address = init_info['addressList'][0]  # 默认地址dict
+        invoice_info = init_info.get('invoiceInfo', {})  # 默认发票信息dict, 有可能不返回
+        token = init_info['token']
 
         data = {
             'skuId': sku_id,
@@ -968,15 +977,15 @@ class Assistant(object):
         payload = {
             'skuId': sku_id,
         }
-        if not self.seckill_order_data:
-            self.seckill_order_data = self._gen_seckill_order_data(sku_id, num)
+        if not self.seckill_order_data.get(sku_id):
+            self.seckill_order_data[sku_id] = self._gen_seckill_order_data(sku_id, num)
         headers = {
             'User-Agent': USER_AGENT,
             'Host': 'marathon.jd.com',
             'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'
                 .format(sku_id, num, int(time.time())),
         }
-        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data, headers=headers)
+        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data.get(sku_id), headers=headers)
         js = parse_json(resp.text)
         # 返回信息
         # 抢购失败：
@@ -1024,18 +1033,21 @@ class Assistant(object):
             print(get_current_time(), '执行结束，抢购{0}失败！'.format(sku_id))
             return False
 
-    def exec_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
+    def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1):
         """定时抢购
-        :param sku_id: 商品id
+        :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
         :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
         :param num: 购买数量，可选参数，默认1个
         :return:
         """
-        print(get_current_time(), '准备抢购商品:%s' % sku_id)
+        sku_ids_list = parse_sku_id(sku_ids=sku_ids, need_shuffle=False)
+        print(get_current_time(), '准备抢购商品:%s' % list_to_str(sku_ids_list))
 
         t = Timer(buy_time=buy_time)
         t.start()
 
-        self.exec_seckill(sku_id, retry, interval, num)
+        for sku_id in sku_ids_list:
+            print(get_current_time(), '开始抢购商品:%s' % sku_id)
+            self.exec_seckill(sku_id, retry, interval, num)
