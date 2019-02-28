@@ -7,7 +7,7 @@ import requests
 import pickle
 from bs4 import BeautifulSoup
 
-from jd_tools import *
+from util import *
 from timer import Timer
 from config import global_config
 
