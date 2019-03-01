@@ -2,7 +2,7 @@
 import time
 from datetime import datetime
 
-from jd_tools import get_current_time
+from util import get_current_time
 
 
 class Timer(object):
