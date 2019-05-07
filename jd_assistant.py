@@ -728,13 +728,13 @@ class Assistant(object):
         else:
             print(get_current_time(), '执行结束，提交订单失败！')
 
-    def submit_order_by_stock(self, sku_id, area, interval=3):
+    def submit_order_by_stock(self, sku_ids, area, interval=3):
         """当商品有库存时提交订单
 
         重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
         该方法会按照指定的间隔查询库存，当有货时提交订单。
 
-        :param sku_id: 商品id
+        :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
         :param area: 地区id
         :param interval: 查询库存间隔，可选参数，默认为3秒/次
         :return:
