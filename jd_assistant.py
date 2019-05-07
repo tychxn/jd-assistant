@@ -369,7 +369,7 @@ class Assistant(object):
             js = parse_json(resp.text)
             # many user info are included in response, now return nick name in it
             # jQuery2381773({"imgUrl":"//storage.360buyimg.com/i.imageUpload/xxx.jpg","lastLoginTime":"","nickName":"xxx","plusStatus":"0","realName":"xxx","userLevel":x,"userScoreVO":{"accountScore":xx,"activityScore":xx,"consumptionScore":xxxxx,"default":false,"financeScore":xxx,"pin":"xxx","riskScore":x,"totalScore":xxxxx}})
-            return js.get('nickName')
+            return js.get('nickName') or 'jd'
         except Exception as e:
             return 'jd'
 
@@ -652,12 +652,13 @@ class Assistant(object):
             'submitOrderParam.trackID': 'TestTrackId',
             'submitOrderParam.ignorePriceChange': '0',
             'submitOrderParam.btSupport': '0',
-            'submitOrderParam.jxj': 1,
             'riskControl': self.risk_control,
+            'submitOrderParam.isBestCoupon': 1,
+            'submitOrderParam.jxj': 1,
             'submitOrderParam.trackId': self.track_id,  # Todo: need to get trackId
             'submitOrderParam.eid': self.eid,
             'submitOrderParam.fp': self.fp,
-            # 'submitOrderParam.needCheck': 1,
+            'submitOrderParam.needCheck': 1,
         }
 
         # add payment password when necessary
@@ -739,12 +740,12 @@ class Assistant(object):
         :return:
         """
         while True:
-            if self.if_item_in_stock(sku_ids=sku_id, area=area):
-                print(get_current_time(), '%s有货了，正在提交订单……' % sku_id)
+            if self.if_item_in_stock(sku_ids=sku_ids, area=area):
+                print(get_current_time(), '【%s】有货了，正在提交订单……' % sku_ids)
                 if self.submit_order():
                     break
             else:
-                print(get_current_time(), '%s无货，准备下一次查询' % sku_id)
+                print(get_current_time(), '【%s】无货，准备下一次查询' % sku_ids)
                 time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
