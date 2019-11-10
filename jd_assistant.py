@@ -629,6 +629,59 @@ class Assistant(object):
         except Exception as e:
             print(get_current_time(), e)
 
+    def _save_invoice(self):
+        """下单第三方商品时如果未设置发票，将从电子发票切换为普通发票
+
+        http://jos.jd.com/api/complexTemplate.htm?webPamer=invoice&groupName=%E5%BC%80%E6%99%AE%E5%8B%92%E5%85%A5%E9%A9%BB%E6%A8%A1%E5%BC%8FAPI&id=566&restName=jd.kepler.trade.submit&isMulti=true
+
+        :return:
+        """
+        url = 'https://trade.jd.com/shopping/dynamic/invoice/saveInvoice.action'
+        data = {
+            "invoiceParam.selectedInvoiceType": 1,
+            "invoiceParam.companyName": "个人",
+            "invoiceParam.invoicePutType": 0,
+            "invoiceParam.selectInvoiceTitle": 4,
+            "invoiceParam.selectBookInvoiceContent": "",
+            "invoiceParam.selectNormalInvoiceContent": 1,
+            "invoiceParam.vatCompanyName": "",
+            "invoiceParam.code": "",
+            "invoiceParam.regAddr": "",
+            "invoiceParam.regPhone": "",
+            "invoiceParam.regBank": "",
+            "invoiceParam.regBankAccount": "",
+            "invoiceParam.hasCommon": "true",
+            "invoiceParam.hasBook": "false",
+            "invoiceParam.consigneeName": "",
+            "invoiceParam.consigneePhone": "",
+            "invoiceParam.consigneeAddress": "",
+            "invoiceParam.consigneeProvince": "请选择：",
+            "invoiceParam.consigneeProvinceId": "NaN",
+            "invoiceParam.consigneeCity": "请选择",
+            "invoiceParam.consigneeCityId": "NaN",
+            "invoiceParam.consigneeCounty": "请选择",
+            "invoiceParam.consigneeCountyId": "NaN",
+            "invoiceParam.consigneeTown": "请选择",
+            "invoiceParam.consigneeTownId": 0,
+            "invoiceParam.sendSeparate": "false",
+            "invoiceParam.usualInvoiceId": "",
+            "invoiceParam.selectElectroTitle": 4,
+            "invoiceParam.electroCompanyName": "undefined",
+            "invoiceParam.electroInvoiceEmail": "",
+            "invoiceParam.electroInvoicePhone": "",
+            "invokeInvoiceBasicService": "true",
+            "invoice_ceshi1": "",
+            "invoiceParam.showInvoiceSeparate": "false",
+            "invoiceParam.invoiceSeparateSwitch": 1,
+            "invoiceParam.invoiceCode": "",
+            "invoiceParam.saveInvoiceFlag": 1
+        }
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://trade.jd.com/shopping/dynamic/invoice/saveInvoice.action',
+        }
+        self.sess.post(url=url, data=data, headers=headers)
+
     def submit_order(self):
         """提交订单
 
@@ -691,7 +744,10 @@ class Assistant(object):
                 return True
             else:
                 message, result_code = js.get('message'), js.get('resultCode')
-                if result_code == 60077:
+                if result_code == 0:
+                    self._save_invoice()
+                    message = message + '(下单商品可能为第三方商品，将切换为普通发票进行尝试)'
+                elif result_code == 60077:
                     message = message + '(可能是购物车为空 或 未勾选购物车中商品)'
                 elif result_code == 60123:
                     message = message + '(需要在config.ini文件中配置支付密码)'
@@ -1052,3 +1108,36 @@ class Assistant(object):
         for sku_id in sku_ids_list:
             print(get_current_time(), '开始抢购商品:%s' % sku_id)
             self.exec_seckill(sku_id, retry, interval, num)
+
+    def exec_reserve_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
+        """定时抢购`预约抢购商品`
+
+        预约抢购商品特点：
+            1.需要提前点击预约
+            2.大部分此类商品在预约后自动加入购物车，但是无法勾选✓，也无法️进入到结算页面
+            3.到了抢购的时间点后将商品加入购物车，此时才能勾选并下单
+
+        注意：
+            1.请在抢购开始前手动清空购物车中此类无法勾选的商品！（因为脚本在执行清空购物车操作时，无法清空不能勾选的商品）
+
+        :param sku_id: 商品id
+        :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
+        :param retry: 抢购重复执行次数，可选参数，默认4次
+        :param interval: 抢购执行间隔，可选参数，默认4秒
+        :param num: 购买数量，可选参数，默认1个
+        :return:
+        """
+
+        t = Timer(buy_time=buy_time)
+        t.start()
+
+        self.add_item_to_cart(sku_ids={sku_id: num})
+
+        for count in range(1, retry + 1):
+            print(get_current_time(), '第[{0}/{1}]次尝试提交订单……'.format(count, retry))
+            if self.submit_order():
+                break
+            print(get_current_time(), '休息{0}s……'.format(interval))
+            time.sleep(interval)
+        else:
+            print(get_current_time(), '执行结束，提交订单失败！')

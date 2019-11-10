@@ -10,10 +10,12 @@ if __name__ == '__main__':
 
     asst = Assistant()  # 初始化
     asst.login_by_QRcode()  # 扫码登陆
-    asst.exec_seckill_by_time(sku_ids='100002852990', buy_time='2019-02-19 09:59:59.500', retry=10, interval=4)
+    asst.clear_cart()
+    asst.exec_reserve_seckill_by_time(sku_id="100009083498", buy_time="2019-11-10 22:42:30.000")
+    # 执行预约抢购
     # 5个参数
-    # sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
-    # buy_time: 下单时间，例如：'2019-02-19 09:59:59.500'
+    # sku_id: 商品id
+    # buy_time: 下单时间，例如：'2019-11-10 22:41:30.000'
     # retry: 抢购重复执行次数，可选参数，默认4次
     # interval: 抢购执行间隔，可选参数，默认4秒
     # num: 购买数量，可选参数，默认1个
