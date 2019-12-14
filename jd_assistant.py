@@ -414,8 +414,8 @@ class Assistant(object):
         resp = requests.get(url=url, params=payload, headers=headers)
 
         js = parse_json(resp.text)
-        stock_state = js['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
-        stock_state_name = js['stock']['StockStateName']
+        stock_state = js['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
+        stock_state_name = js['StockStateName']
         return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
 
     def get_multi_item_stock(self, sku_ids, area):
