@@ -72,4 +72,5 @@ pip install -r requirements.txt
 
 ## 备份地址
 
+- GitHub: [https://github.com/tychxn/jd-assistant](https://github.com/tychxn/jd-assistant)
 - 码云: [https://gitee.com/tychxn/jd-assistant](https://gitee.com/tychxn/jd-assistant)
