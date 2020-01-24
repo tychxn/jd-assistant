@@ -44,6 +44,7 @@ class Assistant(object):
         self.sess = requests.session()
 
         self.item_cat = dict()
+        self.item_vender_ids = dict()
 
         self.risk_control = ''
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
@@ -409,11 +410,16 @@ class Assistant(object):
         :return: 库存状态元祖：(33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
         """
         cat = self.item_cat.get(sku_id)
+        vender_id = self.item_vender_ids.get(sku_id)
         if not cat:
             page = self._get_item_detail_page(sku_id)
             match = re.search(r'cat: \[(.*?)\]', page.text)
             cat = match.group(1)
             self.item_cat[sku_id] = cat
+
+            match = re.search(r'venderId:(\d*?),', page.text)
+            vender_id = match.group(1)
+            self.item_vender_ids[sku_id] = vender_id
 
         url = 'https://c0.3.cn/stock'
         payload = {
@@ -425,7 +431,7 @@ class Assistant(object):
             'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
             'extraParam': '{"originid":"1"}',  # get error stock state without this param
             'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
-            # 'venderId': ''  # won't return seller information without this param (can be ignored)
+            'venderId': vender_id  # return seller information with this param (can't be ignored)
         }
         headers = {
             'User-Agent': USER_AGENT,
@@ -434,8 +440,8 @@ class Assistant(object):
         resp = requests.get(url=url, params=payload, headers=headers)
 
         resp_json = parse_json(resp.text)
-        stock_state = resp_json['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
-        stock_state_name = resp_json['StockStateName']
+        stock_state = resp_json['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
+        stock_state_name = resp_json['stock']['StockStateName']
         return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
 
     def get_multi_item_stock(self, sku_ids, area):
@@ -820,8 +826,9 @@ class Assistant(object):
                 if self.submit_order():
                     break
             else:
-                print(get_current_time(), '【%s】无货，准备下一次查询' % sku_ids)
-                time.sleep(interval)
+                print(get_current_time(), '【%s】无货，准备下一次查询 (%ss)' % (sku_ids, interval))
+
+            time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
         """查询订单信息
