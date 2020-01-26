@@ -532,6 +532,8 @@ class Assistant(object):
         2.在提交订单时会对勾选的商品进行结算。
         3.部分商品（如预售）无法添加到购物车
 
+        京东购物车可容纳的最大商品种数约为118-120种，超过数量会加入购物车失败。
+
         :param sku_ids: 商品id，格式："123" 或 "123,456" 或 "123:1,456:2" 或 {"123":1, "456":2}。若不配置数量，默认为1个。
         :return:
         """
@@ -554,12 +556,16 @@ class Assistant(object):
                 'ptype': 1,
             }
             resp = self.sess.get(url=url, params=payload, headers=headers)
-            soup = BeautifulSoup(resp.text, "html.parser")
-            tag = soup.select('h3.ftx-02')  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
-            if not tag:
-                print(get_current_time(), '{0}添加到购物车失败'.format(sku_id))
-                return
-            print(get_current_time(), '{0} x {1} 已成功加入购物车'.format(sku_id, count))
+            if 'https://cart.jd.com/cart.action' in resp.url:  # 套装商品加入购物车后直接跳转到购物车页面
+                result = True
+            else:  # 普通商品成功加入购物车后会跳转到提示 "商品已成功加入购物车！" 页面
+                soup = BeautifulSoup(resp.text, "html.parser")
+                result = bool(soup.select('h3.ftx-02'))  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
+
+            if result:
+                print(get_current_time(), '{0} x {1} 已成功加入购物车'.format(sku_id, count))
+            else:
+                print(get_current_time(), '{0} 添加到购物车失败'.format(sku_id))
 
     def clear_cart(self):
         """清空购物车
