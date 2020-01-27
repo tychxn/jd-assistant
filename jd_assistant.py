@@ -407,7 +407,7 @@ class Assistant(object):
         """获取单个商品库存状态
         :param sku_id: 商品id
         :param area: 地区id
-        :return: 库存状态元祖：(33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
+        :return: 商品是否有货 True/False
         """
         cat = self.item_cat.get(sku_id)
         vender_id = self.item_vender_ids.get(sku_id)
@@ -438,11 +438,10 @@ class Assistant(object):
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
         resp = requests.get(url=url, params=payload, headers=headers)
-
         resp_json = parse_json(resp.text)
-        stock_state = resp_json['stock']['StockState']  # 33 -- 现货  34 -- 无货  40 -- 可配货
-        stock_state_name = resp_json['stock']['StockStateName']
-        return stock_state, stock_state_name  # (33, '现货') (34, '无货') (36, '采购中') (40, '可配货')
+        stock_state = resp_json['stock']['StockState']  # 33 -- 现货  0,34 -- 无货  36 -- '采购中'  40 -- 可配货
+        # stock_state_name = resp_json['stock']['StockStateName']
+        return stock_state in (33, 40)
 
     def get_multi_item_stock(self, sku_ids, area):
         """获取多个商品库存状态
@@ -496,19 +495,39 @@ class Assistant(object):
 
         return stock
 
-    def if_item_in_stock(self, sku_ids, area):
-        """判断商品是否有货
-        :param sku_ids: 商品id，多个商品的id的中间用英文逗号进行分割
+    def _if_item_removed(self, sku_id):
+        """判断商品是否下架
+        :param sku_id: 商品id
+        :return: 商品是否下架 True/False
+        """
+        detail_page = self._get_item_detail_page(sku_id=sku_id)
+        return '该商品已下柜' in detail_page.text
+
+    def if_item_can_be_ordered(self, sku_ids, area):
+        """判断商品是否能下单
+
+        执行逻辑：
+        1. 查询京东单个/多个商品库存接口是否有货
+        2. 查询商品是否下架（存在查询库存接口显示有货，但是商品已下架的情况）
+
+        :param sku_ids: 商品id，多个商品id中间使用英文逗号进行分割
         :param area: 地址id
-        :return: 商品是否有货 True/False
+        :return: 商品是否能下单 True/False
         """
         sku_ids = parse_sku_id(sku_ids=sku_ids)
-        if len(sku_ids) > 1:  # 多个商品同时查询库存
-            return self.get_multi_item_stock(sku_ids=sku_ids, area=area)
 
-        # 单个商品查询库存
-        stock_code = self.get_single_item_stock(sku_ids[0], area)[0]  # 库存状态码
-        return stock_code in (33, 40)  # 现货（33）和可配货（40）均可以下单
+        # 查询商品库存
+        stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area) if len(sku_ids) > 1 \
+            else self.get_single_item_stock(sku_id=sku_ids[0], area=area)
+
+        # 查询商品是否下架
+        if not stock:
+            return False
+        else:
+            for sku_id in sku_ids:
+                if self._if_item_removed(sku_id=sku_id):
+                    return False
+        return True
 
     def get_item_price(self, sku_id):
         """获取商品价格
@@ -827,12 +846,12 @@ class Assistant(object):
         :return:
         """
         while True:
-            if self.if_item_in_stock(sku_ids=sku_ids, area=area):
-                print(get_current_time(), '【%s】有货了，正在提交订单……' % sku_ids)
+            if self.if_item_can_be_ordered(sku_ids=sku_ids, area=area):
+                print(get_current_time(), '【%s】可以下单，正在提交订单……' % sku_ids)
                 if self.submit_order():
                     break
             else:
-                print(get_current_time(), '【%s】无货，准备下一次查询 (%ss)' % (sku_ids, interval))
+                print(get_current_time(), '【%s】无法下单，准备下一次查询 (%ss)' % (sku_ids, interval))
 
             time.sleep(interval)
 
