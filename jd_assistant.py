@@ -519,14 +519,14 @@ class Assistant(object):
         # 查询商品库存
         stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area) if len(sku_ids) > 1 \
             else self.get_single_item_stock(sku_id=sku_ids[0], area=area)
-
-        # 查询商品是否下架
         if not stock:
             return False
-        else:
-            for sku_id in sku_ids:
-                if self._if_item_removed(sku_id=sku_id):
-                    return False
+
+        # 查询商品是否下架
+        for sku_id in sku_ids:
+            if self._if_item_removed(sku_id=sku_id):
+                return False
+
         return True
 
     def get_item_price(self, sku_id):
