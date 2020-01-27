@@ -45,6 +45,7 @@ class Assistant(object):
 
         self.item_cat = dict()
         self.item_vender_ids = dict()
+        self.has_check_item_state = False
 
         self.risk_control = ''
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
@@ -503,6 +504,28 @@ class Assistant(object):
         detail_page = self._get_item_detail_page(sku_id=sku_id)
         return '该商品已下柜' in detail_page.text
 
+    def check_item_state(self, sku_ids, interval=3):
+        """循环检测商品是否已经上架
+        :param sku_ids: 商品id，多个商品id中间使用英文逗号进行分割
+        :param interval: 查询商品上架状态间隔，可选参数，默认为3秒
+        :return:
+        """
+        sku_ids = parse_sku_id(sku_ids=sku_ids)
+
+        while True:
+            flag = True
+            for sku_id in sku_ids:
+                if self._if_item_removed(sku_id=sku_id):
+                    print(get_current_time(), '{0} 商品未上架, {1}s后再次检测'.format(sku_id, interval))
+                    flag = False
+                    break
+            if flag:
+                break
+            time.sleep(interval)
+
+        print(get_current_time(), '{0} 已上架，检测通过'.format(list_to_str(sku_ids)))
+        self.has_check_item_state = True  # 设置标记，防止查询商品是否可下单时重复检测商品上架状态
+
     def if_item_can_be_ordered(self, sku_ids, area):
         """判断商品是否能下单
 
@@ -517,13 +540,15 @@ class Assistant(object):
         sku_ids = parse_sku_id(sku_ids=sku_ids)
 
         # 查询商品库存
-        stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area) if len(sku_ids) > 1 \
+        in_stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area) if len(sku_ids) > 1 \
             else self.get_single_item_stock(sku_id=sku_ids[0], area=area)
-        if not stock:
+        if not in_stock:
             return False
 
-        # 查询商品是否下架
-        for sku_id in sku_ids:
+        if self.has_check_item_state:  # 如果在之前已经检测过商品上架状态，则不再重复检测
+            return True
+
+        for sku_id in sku_ids:  # 查询商品是否下架
             if self._if_item_removed(sku_id=sku_id):
                 return False
 
@@ -847,11 +872,11 @@ class Assistant(object):
         """
         while True:
             if self.if_item_can_be_ordered(sku_ids=sku_ids, area=area):
-                print(get_current_time(), '【%s】可以下单，正在提交订单……' % sku_ids)
+                print(get_current_time(), '[%s] 满足下单条件，正在提交订单……' % sku_ids)
                 if self.submit_order():
                     break
             else:
-                print(get_current_time(), '【%s】无法下单，准备下一次查询 (%ss)' % (sku_ids, interval))
+                print(get_current_time(), '[%s] 不满足下单条件，%ss后再次查询' % (sku_ids, interval))
 
             time.sleep(interval)
 
