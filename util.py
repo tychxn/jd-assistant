@@ -89,20 +89,34 @@ def parse_items_dict(d):
     return result
 
 
-def parse_sku_id(sku_ids, contain_count=False, need_shuffle=False):
-    sku_id_list = list(map(lambda x: x.strip(), sku_ids.split(',')))
-    sku_id_list = list(filter(bool, sku_id_list))  # remove empty
+def parse_sku_id(sku_ids):
+    """将商品id字符串解析为字典
 
-    if contain_count or (':' in sku_ids):
-        sku_id_dict = dict()
-        for item in sku_id_list:
+    商品id字符串采用英文逗号进行分割。
+    可以在每个id后面用冒号加上数字，代表该商品的数量，如果不加数量则默认为1。
+
+    例如：
+    输入  -->  解析结果
+    '123456' --> {'123456': '1'}
+    '123456,123789' --> {'123456': '1', '123789': '1'}
+    '123456:1,123789:3' --> {'123456': '1', '123789': '3'}
+    '123456:2,123789' --> {'123456': '2', '123789': '1'}
+
+    :param sku_ids: 商品id字符串
+    :return: dict
+    """
+    if isinstance(sku_ids, dict):  # 防止重复解析
+        return sku_ids
+
+    sku_id_list = list(filter(bool, map(lambda x: x.strip(), sku_ids.split(','))))
+    result = dict()
+    for item in sku_id_list:
+        if ':' in item:
             sku_id, count = map(lambda x: x.strip(), item.split(':'))
-            sku_id_dict[sku_id] = count
-        return sku_id_dict
-
-    if need_shuffle:
-        shuffle(sku_id_list)
-    return sku_id_list
+            result[sku_id] = count
+        else:
+            result[item] = '1'
+    return result
 
 
 def list_to_str(l):

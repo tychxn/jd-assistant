@@ -404,9 +404,10 @@ class Assistant(object):
         page = requests.get(url=url, headers=self.headers)
         return page
 
-    def get_single_item_stock(self, sku_id, area):
+    def get_single_item_stock(self, sku_id, num, area):
         """获取单个商品库存状态
         :param sku_id: 商品id
+        :param num: 商品数量
         :param area: 地区id
         :return: 商品是否有货 True/False
         """
@@ -425,7 +426,7 @@ class Assistant(object):
         url = 'https://c0.3.cn/stock'
         payload = {
             'skuId': sku_id,
-            'buyNum': 1,
+            'buyNum': num,
             'area': area,
             'ch': 1,
             '_': str(int(time.time() * 1000)),
@@ -450,13 +451,11 @@ class Assistant(object):
         该方法需要登陆才能调用，用于同时查询多个商品的库存。
         京东查询接口返回每种商品的状态：有货/无货。当所有商品都有货，返回True；否则，返回False。
 
-        :param sku_ids: 多个商品的id。可以传入中间用英文逗号的分割字符串，如"123,456"；或传入商品列表，如["123", "456"]
+        :param sku_ids: 多个商品的id。可以传入中间用英文逗号的分割字符串，如"123,456"
         :param area: 地区id
         :return: 多个商品是否同时有货 True/False
         """
-        if not isinstance(sku_ids, list):
-            sku_ids = parse_sku_id(sku_ids=sku_ids)
-
+        sku_ids = parse_sku_id(sku_ids=sku_ids)
         area_code = parse_area_id(area)
 
         url = 'https://trade.jd.com/api/v1/batch/stock'
@@ -475,10 +474,10 @@ class Assistant(object):
             },
             "skuNumList": []
         }
-        for sku_id in sku_ids:
+        for sku_id, count in sku_ids.items():
             data['skuNumList'].append({
                 "skuId": sku_id,
-                "num": "1"
+                "num": count
             })
         # convert to string
         data = json.dumps(data)
@@ -510,11 +509,9 @@ class Assistant(object):
         :param interval: 查询商品上架状态间隔，可选参数，默认为3秒
         :return:
         """
-        sku_ids = parse_sku_id(sku_ids=sku_ids)
-
         while True:
             flag = True
-            for sku_id in sku_ids:
+            for sku_id in parse_sku_id(sku_ids=sku_ids):
                 if self._if_item_removed(sku_id=sku_id):
                     logger.info('{0} 商品未上架, {1}s后再次检测'.format(sku_id, interval))
                     flag = False
@@ -523,7 +520,7 @@ class Assistant(object):
                 break
             time.sleep(interval)
 
-        logger.info('{0} 已上架，检测通过'.format(list_to_str(sku_ids)))
+        logger.info('商品已上架，检测通过')
         self.has_check_item_state = True  # 设置标记，防止查询商品是否可下单时重复检测商品上架状态
 
     def if_item_can_be_ordered(self, sku_ids, area):
@@ -540,8 +537,12 @@ class Assistant(object):
         sku_ids = parse_sku_id(sku_ids=sku_ids)
 
         # 查询商品库存
-        in_stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area) if len(sku_ids) > 1 \
-            else self.get_single_item_stock(sku_id=sku_ids[0], area=area)
+        if len(sku_ids) > 1:
+            in_stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area)
+        else:
+            sku_id, num = list(sku_ids.items())[0]
+            in_stock = self.get_single_item_stock(sku_id=sku_id, num=num, area=area)
+
         if not in_stock:
             return False
 
@@ -578,7 +579,7 @@ class Assistant(object):
 
         京东购物车可容纳的最大商品种数约为118-120种，超过数量会加入购物车失败。
 
-        :param sku_ids: 商品id，格式："123" 或 "123,456" 或 "123:1,456:2" 或 {"123":1, "456":2}。若不配置数量，默认为1个。
+        :param sku_ids: 商品id，格式："123" 或 "123,456" 或 "123:1,456:2"。若不配置数量，默认为1个。
         :return:
         """
         url = 'https://cart.jd.com/gate.action'
@@ -586,14 +587,7 @@ class Assistant(object):
             'User-Agent': USER_AGENT,
         }
 
-        # "123" or "123,456" or "123:1,456:2" or {"123":1, "456":2}
-        if isinstance(sku_ids, str):
-            if ':' in sku_ids:
-                sku_ids = parse_sku_id(sku_ids=sku_ids)
-            else:
-                sku_ids = {sku_id: 1 for sku_id in parse_sku_id(sku_ids=sku_ids)}
-
-        for sku_id, count in sku_ids.items():
+        for sku_id, count in parse_sku_id(sku_ids=sku_ids).items():
             payload = {
                 'pid': sku_id,
                 'pcount': count,
@@ -1175,13 +1169,13 @@ class Assistant(object):
         :param num: 购买数量，可选参数，默认1个
         :return:
         """
-        sku_ids_list = parse_sku_id(sku_ids=sku_ids, need_shuffle=False)
-        logger.info('准备抢购商品:%s' % list_to_str(sku_ids_list))
+        sku_ids = parse_sku_id(sku_ids=sku_ids)
+        logger.info('准备抢购商品:%s' % list_to_str(list(sku_ids.keys())))
 
         t = Timer(buy_time=buy_time)
         t.start()
 
-        for sku_id in sku_ids_list:
+        for sku_id in sku_ids:
             logger.info('开始抢购商品:%s' % sku_id)
             self.exec_seckill(sku_id, retry, interval, num)
 
