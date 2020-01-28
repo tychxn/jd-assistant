@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-import os
-import time
 import json
+import os
+import re
+import time
 from base64 import b64encode
 from random import shuffle
 
@@ -108,7 +109,12 @@ def list_to_str(l):
     return '[%s]' % ','.join(l)
 
 
-def parse_area_id(area_id='12_904_3375'):
-    area = list(area_id.split('_'))
+def parse_area_id(area_id):
+    """
+    解析地区id
+    :param area_id: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
+    :return:
+    """
+    area = re.split('_|-', area_id)
     area.extend((4 - len(area)) * ['0'])
     return area
