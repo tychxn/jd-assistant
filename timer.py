@@ -2,7 +2,7 @@
 import time
 from datetime import datetime
 
-from util import get_current_time
+from log import logger
 
 
 class Timer(object):
@@ -14,11 +14,11 @@ class Timer(object):
         self.sleep_interval = sleep_interval
 
     def start(self):
-        print(get_current_time(), '正在等待到达设定时间:%s' % self.buy_time)
+        logger.info('正在等待到达设定时间:%s' % self.buy_time)
         now_time = datetime.now
         while True:
             if now_time() >= self.buy_time:
-                print(get_current_time(), '时间到达，开始执行……')
+                logger.info('时间到达，开始执行……')
                 break
             else:
                 time.sleep(self.sleep_interval)

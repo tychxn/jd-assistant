@@ -11,13 +11,13 @@ import requests
 from bs4 import BeautifulSoup
 
 from config import global_config
+from log import logger
 from timer import Timer
 from util import (
     USER_AGENT,
     DEFAULT_FP,
     DEFAULT_EID,
     DEFAULT_TRACK_ID,
-    get_current_time,
     get_tag_value,
     encrypt_pwd,
     encrypt_payment_pwd,
@@ -91,7 +91,7 @@ class Assistant(object):
             if resp.status_code == requests.codes.OK:
                 return True
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
         self.sess = requests.session()
         return False
 
@@ -106,7 +106,7 @@ class Assistant(object):
         }
         resp = self.sess.post(url, params=payload, data=data, headers=self.headers)
         if not response_status(resp):
-            print('获取是否需要验证码失败')
+            logger.error('获取是否需要验证码失败')
             return False
 
         resp_json = json.loads(resp.text[1:-1])  # ({"verifycode":true})
@@ -129,7 +129,7 @@ class Assistant(object):
         resp = self.sess.get(url, params=payload, headers=headers)
 
         if not response_status(resp):
-            print('获取验证码失败')
+            logger.error('获取验证码失败')
             return ''
 
         save_image(resp, image_file)
@@ -159,13 +159,13 @@ class Assistant(object):
 
     def login_by_username(self):
         if self.is_login:
-            print(get_current_time(), '登录成功')
+            logger.info('登录成功')
             return True
 
         username = input('账号:')
         password = input('密码:')
         if (not username) or (not password):
-            print(get_current_time(), '用户名或密码不能为空')
+            logger.error('用户名或密码不能为空')
             return False
         self.username = username
 
@@ -174,10 +174,10 @@ class Assistant(object):
 
         auth_code = ''
         if self._need_auth_code(username):
-            print(get_current_time(), '本次登录需要验证码')
+            logger.info('本次登录需要验证码')
             auth_code = self._get_auth_code(uuid)
         else:
-            print(get_current_time(), '本次登录不需要验证码')
+            logger.info('本次登录不需要验证码')
 
         login_url = "https://passport.jd.com/uc/loginService"
         payload = {
@@ -195,14 +195,14 @@ class Assistant(object):
         resp = self.sess.post(url=login_url, data=data, headers=headers, params=payload)
 
         if not response_status(resp):
-            print(get_current_time(), '登录失败')
+            logger.error('登录失败')
             return False
 
         if not self._get_login_result(resp):
             return False
 
         # login success
-        print(get_current_time(), '登录成功')
+        logger.info('登录成功')
         self.nick_name = self.get_user_info()
         self._save_cookies()
         self.is_login = True
@@ -230,7 +230,7 @@ class Assistant(object):
             error_msg = resp_json['pwd']
         else:
             error_msg = resp_json
-        print(get_current_time(), error_msg)
+        logger.error(error_msg)
         return False
 
     def _get_QRcode(self):
@@ -247,12 +247,12 @@ class Assistant(object):
         resp = self.sess.get(url=url, headers=headers, params=payload)
 
         if not response_status(resp):
-            print(get_current_time(), '获取二维码失败')
+            logger.info('获取二维码失败')
             return False
 
         QRCode_file = 'QRcode.png'
         save_image(resp, QRCode_file)
-        print(get_current_time(), '二维码获取成功，请打开京东APP扫描')
+        logger.info('二维码获取成功，请打开京东APP扫描')
         open_image(QRCode_file)
         return True
 
@@ -271,15 +271,15 @@ class Assistant(object):
         resp = self.sess.get(url=url, headers=headers, params=payload)
 
         if not response_status(resp):
-            print(get_current_time(), '获取二维码扫描结果出错')
+            logger.error('获取二维码扫描结果出错')
             return False
 
         resp_json = parse_json(resp.text)
         if resp_json['code'] != 200:
-            print(get_current_time(), 'Code: {0}, Message: {1}'.format(resp_json['code'], resp_json['msg']))
+            logger.info('Code: {0}, Message: {1}'.format(resp_json['code'], resp_json['msg']))
             return None
         else:
-            print(get_current_time(), '已完成手机客户端确认')
+            logger.info('已完成手机客户端确认')
             return resp_json['ticket']
 
     def _validate_QRcode_ticket(self, ticket):
@@ -297,7 +297,7 @@ class Assistant(object):
         if resp_json['returnCode'] == 0:
             return True
         else:
-            print(get_current_time(), resp_json)
+            logger.info(resp_json)
             return False
 
     def login_by_QRcode(self):
@@ -305,14 +305,14 @@ class Assistant(object):
         :return:
         """
         if self.is_login:
-            print(get_current_time(), '登录成功')
+            logger.info('登录成功')
             return True
 
         self._get_login_page()
 
         # download QR code
         if not self._get_QRcode():
-            print(get_current_time(), '登录失败')
+            logger.error('登录失败')
             return False
 
         # get QR code ticket
@@ -324,15 +324,15 @@ class Assistant(object):
                 break
             time.sleep(2)
         else:
-            print(get_current_time(), '二维码扫描出错')
+            logger.error('二维码扫描出错')
             return False
 
         # validate QR code ticket
         if not self._validate_QRcode_ticket(ticket):
-            print(get_current_time(), '二维码登录失败')
+            logger.error('二维码登录失败')
             return False
         else:
-            print(get_current_time(), '二维码登录成功')
+            logger.info('二维码登录成功')
             self.nick_name = self.get_user_info()
             self._save_cookies()
             self.is_login = True
@@ -361,7 +361,7 @@ class Assistant(object):
         """
         reserve_url = self._get_reserve_url(sku_id)
         if not reserve_url:
-            print(get_current_time(), '{} 非预约商品'.format(sku_id))
+            logger.error('{} 非预约商品'.format(sku_id))
             return
         headers = {
             'User-Agent': USER_AGENT,
@@ -371,7 +371,7 @@ class Assistant(object):
         soup = BeautifulSoup(resp.text, "html.parser")
         reserve_result = soup.find('p', {'class': 'bd-right-result'}).text.strip(' \t\r\n')
         # 预约成功，已获得抢购资格 / 您已成功预约过了，无需重复预约
-        print(get_current_time(), reserve_result)
+        logger.info(reserve_result)
 
     def get_user_info(self):
         """获取用户信息
@@ -516,14 +516,14 @@ class Assistant(object):
             flag = True
             for sku_id in sku_ids:
                 if self._if_item_removed(sku_id=sku_id):
-                    print(get_current_time(), '{0} 商品未上架, {1}s后再次检测'.format(sku_id, interval))
+                    logger.info('{0} 商品未上架, {1}s后再次检测'.format(sku_id, interval))
                     flag = False
                     break
             if flag:
                 break
             time.sleep(interval)
 
-        print(get_current_time(), '{0} 已上架，检测通过'.format(list_to_str(sku_ids)))
+        logger.info('{0} 已上架，检测通过'.format(list_to_str(sku_ids)))
         self.has_check_item_state = True  # 设置标记，防止查询商品是否可下单时重复检测商品上架状态
 
     def if_item_can_be_ordered(self, sku_ids, area):
@@ -607,9 +607,9 @@ class Assistant(object):
                 result = bool(soup.select('h3.ftx-02'))  # [<h3 class="ftx-02">商品已成功加入购物车！</h3>]
 
             if result:
-                print(get_current_time(), '{0} x {1} 已成功加入购物车'.format(sku_id, count))
+                logger.info('{0} x {1} 已成功加入购物车'.format(sku_id, count))
             else:
-                print(get_current_time(), '{0} 添加到购物车失败'.format(sku_id))
+                logger.error('{0} 添加到购物车失败'.format(sku_id))
 
     def clear_cart(self):
         """清空购物车
@@ -632,12 +632,12 @@ class Assistant(object):
             select_resp = self.sess.post(url=select_url, data=data)
             remove_resp = self.sess.post(url=remove_url, data=data)
             if (not response_status(select_resp)) or (not response_status(remove_resp)):
-                print(get_current_time(), '购物车清空失败')
+                logger.error('购物车清空失败')
                 return False
-            print(get_current_time(), '购物车清空成功')
+            logger.info('购物车清空成功')
             return True
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
             return False
 
     def get_cart_detail(self):
@@ -649,19 +649,19 @@ class Assistant(object):
         try:
             resp = self.sess.get(url=url)
             if not response_status(resp):
-                print(get_current_time(), '获取购物车信息失败')
+                logger.error('获取购物车信息失败')
                 return
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            print('************************购物车商品详情************************')
+            logger.info('************************购物车商品详情************************')
             for item in soup.select('div.item-form'):
                 name = get_tag_value(item.select('div.p-name a'))
                 price = get_tag_value(item.select('div.p-price strong'))
                 quantity = get_tag_value(item.select('div.quantity-form input'), 'value')
                 total_price = get_tag_value(item.select('div.p-sum strong'))
-                print(cart_detail_format.format(name, price, quantity, total_price))
+                logger.info(cart_detail_format.format(name, price, quantity, total_price))
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
 
     def get_checkout_page_detail(self):
         """访问订单结算页面
@@ -679,13 +679,13 @@ class Assistant(object):
         try:
             resp = self.sess.get(url=url, params=payload)
             if not response_status(resp):
-                print(get_current_time(), '获取订单结算页信息失败')
+                logger.error('获取订单结算页信息失败')
                 return
             soup = BeautifulSoup(resp.text, "html.parser")
 
             self.risk_control = get_tag_value(soup.select('input#riskControl'), 'value')
 
-            print('************************订单结算页详情************************')
+            logger.info('************************订单结算页详情************************')
             items = soup.select('div.goods-list div.goods-items')[1:]
             checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存状态:{3}'
             for item in items:
@@ -694,15 +694,15 @@ class Assistant(object):
                 price = get_tag_value(div_tag.select('strong.jd-price'))[2:]  # remove '￥ ' from the begin of price
                 quantity = get_tag_value(div_tag.select('span.p-num'))[1:]  # remove 'x' from the begin of quantity
                 state = get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
-                print(checkout_item_detail.format(name, price, quantity, state))
+                logger.info(checkout_item_detail.format(name, price, quantity, state))
 
             sum_price = soup.find('span', id='sumPayPriceId').text[1:]  # remove '￥' from the begin of sum price
             address = soup.find('span', id='sendAddr').text[5:]  # remove '收件人:' from the begin of receiver
             receiver = soup.find('span', id='sendMobile').text[4:]  # remove '寄送至： ' from the begin of address
-            print('应付总额:{0}'.format(sum_price))
-            print('收货地址:{0}----收件人:{1}'.format(address, receiver))
+            logger.info('应付总额:{0}'.format(sum_price))
+            logger.info('收货地址:{0}----收件人:{1}'.format(address, receiver))
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
 
     def _save_invoice(self):
         """下单第三方商品时如果未设置发票，将从电子发票切换为普通发票
@@ -767,7 +767,7 @@ class Assistant(object):
         :return: True/False 订单提交结果
         """
         if not self.is_login:
-            print(get_current_time(), '请先登录再提交订单！')
+            logger.info('请先登录再提交订单！')
             return False
 
         url = 'https://trade.jd.com/shopping/order/submitOrder.action'
@@ -815,7 +815,7 @@ class Assistant(object):
             # {'overSea': False, 'orderXml': None, 'cartXml': None, 'noStockSkuIds': '', 'reqInfo': None, 'hasJxj': False, 'addedServiceList': None, 'sign': None, 'pin': 'xxx', 'needCheckCode': False, 'success': True, 'resultCode': 0, 'orderId': 8740xxxxx, 'submitSkuNum': 1, 'deductMoneyFlag': 0, 'goJumpOrderCenter': False, 'payInfo': None, 'scaleSkuInfoListVO': None, 'purchaseSkuInfoListVO': None, 'noSupportHomeServiceSkuList': None, 'msgMobile': None, 'addressVO': None, 'msgUuid': None, 'message': None}
 
             if resp_json.get('success'):
-                print(get_current_time(), '订单提交成功! 订单号：{0}'.format(resp_json.get('orderId')))
+                logger.info('订单提交成功! 订单号：{0}'.format(resp_json.get('orderId')))
                 return True
             else:
                 message, result_code = resp_json.get('message'), resp_json.get('resultCode')
@@ -826,11 +826,11 @@ class Assistant(object):
                     message = message + '(可能是购物车为空 或 未勾选购物车中商品)'
                 elif result_code == 60123:
                     message = message + '(需要在config.ini文件中配置支付密码)'
-                print(get_current_time(), '订单提交失败, 错误码：{0}, 返回信息：{1}'.format(result_code, message))
-                print(get_current_time(), resp_json)
+                logger.info('订单提交失败, 错误码：{0}, 返回信息：{1}'.format(result_code, message))
+                logger.info(resp_json)
                 return False
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
             return False
 
     def submit_order_by_time(self, buy_time, retry=4, interval=5):
@@ -844,20 +844,20 @@ class Assistant(object):
         :return:
         """
         if not self.is_login:
-            print(get_current_time(), '请先登录再定时下单！')
+            logger.info('请先登录再定时下单！')
             return
 
         t = Timer(buy_time=buy_time)
         t.start()
 
         for count in range(1, retry + 1):
-            print(get_current_time(), '第[{0}/{1}]次尝试提交订单……'.format(count, retry))
+            logger.info('第[{0}/{1}]次尝试提交订单……'.format(count, retry))
             if self.submit_order():
                 break
-            print(get_current_time(), '休息{0}s……'.format(interval))
+            logger.info('休息{0}s……'.format(interval))
             time.sleep(interval)
         else:
-            print(get_current_time(), '执行结束，提交订单失败！')
+            logger.info('执行结束，提交订单失败！')
 
     def submit_order_by_stock(self, sku_ids, area, interval=3):
         """当商品有库存时提交订单
@@ -872,11 +872,11 @@ class Assistant(object):
         """
         while True:
             if self.if_item_can_be_ordered(sku_ids=sku_ids, area=area):
-                print(get_current_time(), '[%s] 满足下单条件，正在提交订单……' % sku_ids)
+                logger.info('[%s] 满足下单条件，正在提交订单……' % sku_ids)
                 if self.submit_order():
                     break
             else:
-                print(get_current_time(), '[%s] 不满足下单条件，%ss后再次查询' % (sku_ids, interval))
+                logger.info('[%s] 不满足下单条件，%ss后再次查询' % (sku_ids, interval))
 
             time.sleep(interval)
 
@@ -886,7 +886,7 @@ class Assistant(object):
         :return:
         """
         if not self.is_login:
-            print(get_current_time(), '请先登录再查询订单！')
+            logger.info('请先登录再查询订单！')
             return
 
         url = 'https://order.jd.com/center/list.action'
@@ -903,11 +903,11 @@ class Assistant(object):
         try:
             resp = self.sess.get(url=url, params=payload, headers=headers)
             if not response_status(resp):
-                print(get_current_time(), '获取订单页信息失败')
+                logger.error('获取订单页信息失败')
                 return
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            print('************************订单列表页查询************************')
+            logger.info('************************订单列表页查询************************')
             order_table = soup.find('table', {'class': 'order-tb'})
             table_bodies = order_table.select('tbody')
             exist_order = False
@@ -953,13 +953,13 @@ class Assistant(object):
                     items_dict[item_id] = quantity
 
                 order_info_format = '下单时间:{0}----订单号:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
-                print(order_info_format.format(order_time, order_id, parse_items_dict(items_dict), order_status,
-                                               sum_price, pay_method))
+                logger.info(order_info_format.format(order_time, order_id, parse_items_dict(items_dict), order_status,
+                                                     sum_price, pay_method))
 
             if not exist_order:
-                print(get_current_time(), '订单查询为空')
+                logger.info('订单查询为空')
         except Exception as e:
-            print(get_current_time(), e)
+            logger.error(e)
 
     def _get_seckill_url(self, sku_id):
         """获取商品的抢购链接
@@ -990,10 +990,10 @@ class Assistant(object):
                 router_url = 'https:' + resp_json.get('url')
                 # https://marathon.jd.com/captcha.html?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
                 seckill_url = router_url.replace('divide', 'marathon').replace('user_routing', 'captcha.html')
-                print(get_current_time(), "抢购链接获取成功: {0}".format(seckill_url))
+                logger.info("抢购链接获取成功: {0}".format(seckill_url))
                 return seckill_url
             else:
-                print(get_current_time(), "抢购链接获取失败，{0}不是抢购商品或抢购页面暂未刷新，1秒后重试".format(sku_id))
+                logger.info("抢购链接获取失败，{0}不是抢购商品或抢购页面暂未刷新，1秒后重试".format(sku_id))
                 time.sleep(1)
 
     def request_seckill_url(self, sku_id):
@@ -1132,11 +1132,11 @@ class Assistant(object):
             order_id = resp_json.get('orderId')
             total_money = resp_json.get('totalMoney')
             pay_url = 'https:' + resp_json.get('pcUrl')
-            print(get_current_time(), '抢购成功，订单号: {0}, 总价: {1}, 电脑端付款链接: {2}'
-                  .format(order_id, total_money, pay_url))
+            logger.info('抢购成功，订单号: {0}, 总价: {1}, 电脑端付款链接: {2}'
+                        .format(order_id, total_money, pay_url))
             return True
         else:
-            print(get_current_time(), '抢购失败，返回信息: {}'.format(resp_json))
+            logger.info('抢购失败，返回信息: {}'.format(resp_json))
             return False
 
     def exec_seckill(self, sku_id, retry=4, interval=4, num=1):
@@ -1154,16 +1154,16 @@ class Assistant(object):
         :return: 抢购结果 True/False
         """
         for count in range(1, retry + 1):
-            print(get_current_time(), '第[{0}/{1}]次尝试抢购商品:{2}'.format(count, retry, sku_id))
+            logger.info('第[{0}/{1}]次尝试抢购商品:{2}'.format(count, retry, sku_id))
             self.request_seckill_url(sku_id)
             self.request_seckill_checkout_page(sku_id, num)
             if self.submit_seckill_order(sku_id, num):
                 return True
             else:
-                print(get_current_time(), '休息{0}s……'.format(interval))
+                logger.info('休息{0}s……'.format(interval))
                 time.sleep(interval)
         else:
-            print(get_current_time(), '执行结束，抢购{0}失败！'.format(sku_id))
+            logger.info('执行结束，抢购{0}失败！'.format(sku_id))
             return False
 
     def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1):
@@ -1176,13 +1176,13 @@ class Assistant(object):
         :return:
         """
         sku_ids_list = parse_sku_id(sku_ids=sku_ids, need_shuffle=False)
-        print(get_current_time(), '准备抢购商品:%s' % list_to_str(sku_ids_list))
+        logger.info('准备抢购商品:%s' % list_to_str(sku_ids_list))
 
         t = Timer(buy_time=buy_time)
         t.start()
 
         for sku_id in sku_ids_list:
-            print(get_current_time(), '开始抢购商品:%s' % sku_id)
+            logger.info('开始抢购商品:%s' % sku_id)
             self.exec_seckill(sku_id, retry, interval, num)
 
     def exec_reserve_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
@@ -1210,10 +1210,10 @@ class Assistant(object):
         self.add_item_to_cart(sku_ids={sku_id: num})
 
         for count in range(1, retry + 1):
-            print(get_current_time(), '第[{0}/{1}]次尝试提交订单……'.format(count, retry))
+            logger.info('第[{0}/{1}]次尝试提交订单……'.format(count, retry))
             if self.submit_order():
                 break
-            print(get_current_time(), '休息{0}s……'.format(interval))
+            logger.info('休息{0}s……'.format(interval))
             time.sleep(interval)
         else:
-            print(get_current_time(), '执行结束，提交订单失败！')
+            logger.info('执行结束，提交订单失败！')
