@@ -44,8 +44,8 @@ class Assistant(object):
         self.sess = requests.session()
 
         self.item_cat = dict()
-        self.item_vender_ids = dict()
-        self.has_check_item_state = False
+        self.item_vender_ids = dict()  # 记录商家id
+        self.item_states = dict()  # 记录商品上架状态
 
         self.risk_control = ''
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
@@ -503,26 +503,6 @@ class Assistant(object):
         detail_page = self._get_item_detail_page(sku_id=sku_id)
         return '该商品已下柜' in detail_page.text
 
-    def check_item_state(self, sku_ids, interval=3):
-        """循环检测商品是否已经上架
-        :param sku_ids: 商品id，多个商品id中间使用英文逗号进行分割
-        :param interval: 查询商品上架状态间隔，可选参数，默认为3秒
-        :return:
-        """
-        while True:
-            flag = True
-            for sku_id in parse_sku_id(sku_ids=sku_ids):
-                if self._if_item_removed(sku_id=sku_id):
-                    logger.info('{0} 商品未上架, {1}s后再次检测'.format(sku_id, interval))
-                    flag = False
-                    break
-            if flag:
-                break
-            time.sleep(interval)
-
-        logger.info('商品已上架，检测通过')
-        self.has_check_item_state = True  # 设置标记，防止查询商品是否可下单时重复检测商品上架状态
-
     def if_item_can_be_ordered(self, sku_ids, area):
         """判断商品是否能下单
 
@@ -540,18 +520,20 @@ class Assistant(object):
         if len(sku_ids) > 1:
             in_stock = self.get_multi_item_stock(sku_ids=sku_ids, area=area)
         else:
-            sku_id, num = list(sku_ids.items())[0]
-            in_stock = self.get_single_item_stock(sku_id=sku_id, num=num, area=area)
+            sku_id, count = list(sku_ids.items())[0]
+            in_stock = self.get_single_item_stock(sku_id=sku_id, num=count, area=area)
 
         if not in_stock:
             return False
 
-        if self.has_check_item_state:  # 如果在之前已经检测过商品上架状态，则不再重复检测
-            return True
+        for sku_id in sku_ids:
+            if self.item_states.get(sku_id, False):  # 商品已上架
+                continue
 
-        for sku_id in sku_ids:  # 查询商品是否下架
-            if self._if_item_removed(sku_id=sku_id):
+            if self._if_item_removed(sku_id=sku_id):  # 商品未上架
                 return False
+            else:
+                self.item_states[sku_id] = True
 
         return True
 
@@ -636,34 +618,116 @@ class Assistant(object):
 
     def get_cart_detail(self):
         """获取购物车商品详情
-        :return:
+        :return: 购物车商品信息 dict
         """
         url = 'https://cart.jd.com/cart.action'
-        cart_detail_format = '商品名称:{0}----单价:{1}----数量:{2}----总价:{3}'
-        try:
-            resp = self.sess.get(url=url)
-            if not response_status(resp):
-                logger.error('获取购物车信息失败')
-                return
-            soup = BeautifulSoup(resp.text, "html.parser")
+        resp = self.sess.get(url)
+        soup = BeautifulSoup(resp.text, "html.parser")
 
-            logger.info('************************购物车商品详情************************')
-            for item in soup.select('div.item-form'):
-                name = get_tag_value(item.select('div.p-name a'))
-                price = get_tag_value(item.select('div.p-price strong'))
-                quantity = get_tag_value(item.select('div.quantity-form input'), 'value')
-                total_price = get_tag_value(item.select('div.p-sum strong'))
-                logger.info(cart_detail_format.format(name, price, quantity, total_price))
-        except Exception as e:
-            logger.error(e)
+        cart_detail = dict()
+        for item in soup.find_all(class_='item-item'):
+            sku_id = item['skuid']  # 商品id
+            try:
+                # 例如：['increment', '8888', '100001071956', '1', '13', '0', '50067652554']
+                # ['increment', '8888', '100002404322', '2', '1', '0']
+                item_attr_list = item.find(class_='increment')['id'].split('_')
+                p_type = item_attr_list[4]
+                promo_id = target_id = item_attr_list[-1] if len(item_attr_list) == 7 else 0
+
+                cart_detail[sku_id] = {
+                    'name': get_tag_value(item.select('div.p-name a')),  # 商品名称
+                    'verder_id': item['venderid'],  # 商家id
+                    'count': int(item['num']),  # 数量
+                    'unit_price': get_tag_value(item.select('div.p-price strong'))[1:],  # 单价
+                    'total_price': get_tag_value(item.select('div.p-sum strong'))[1:],  # 总价
+                    'is_selected': 'item-selected' in item['class'],  # 商品是否被勾选
+                    'p_type': p_type,
+                    'target_id': target_id,
+                    'promo_id': promo_id
+                }
+            except Exception as e:
+                logger.error("商品{0}在购物车中的信息无法解析，报错信息: {1}，该商品自动忽略".format(sku_id, e))
+
+        logger.info('购物车信息：%s' % cart_detail)
+        return cart_detail
+
+    def _cancel_select_all_cart_item(self):
+        """取消勾选购物车中的所有商品
+        :return: 取消勾选结果 True/False
+        """
+        url = "https://cart.jd.com/cancelAllItem.action"
+        data = {
+            't': 0,
+            'outSkus': '',
+            'random': random.random()
+            # 'locationId' can be ignored
+        }
+        resp = self.sess.post(url, data=data)
+        return response_status(resp)
+
+    def _change_item_num_in_cart(self, sku_id, vender_id, num, p_type, target_id, promo_id):
+        """修改购物车商品的数量
+        修改购物车中商品数量后，该商品将会被自动勾选上。
+
+        :param sku_id: 商品id
+        :param vender_id: 商家id
+        :param num: 目标数量
+        :param p_type: 商品类型(可能)
+        :param target_id: 参数用途未知，可能是用户判断优惠
+        :param promo_id: 参数用途未知，可能是用户判断优惠
+        :return: 商品数量修改结果 True/False
+        """
+        url = "https://cart.jd.com/changeNum.action"
+        data = {
+            't': 0,
+            'venderId': vender_id,
+            'pid': sku_id,
+            'pcount': num,
+            'ptype': p_type,
+            'targetId': target_id,
+            'promoID': promo_id,
+            'outSkus': '',
+            'random': random.random(),
+            # 'locationId'
+        }
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://cart.jd.com/cart',
+        }
+        resp = self.sess.post(url, data=data, headers=headers)
+        return json.loads(resp.text)['sortedWebCartResult']['achieveSevenState'] == 2
+
+    def _add_or_change_cart_item(self, cart, sku_id, count):
+        """添加商品到购物车，或修改购物车中商品数量
+
+        如果购物车中存在该商品，会修改该商品的数量并勾选；否则，会添加该商品到购物车中并勾选。
+
+        :param cart: 购物车信息 dict
+        :param sku_id: 商品id
+        :param count: 商品数量
+        :return: 运行结果 True/False
+        """
+        if sku_id in cart:
+            logger.info('{0} 已在购物车中，调整数量为 {1}'.format(sku_id, count))
+            cart_item = cart.get(sku_id)
+            return self._change_item_num_in_cart(
+                sku_id=sku_id,
+                vender_id=cart_item.get('vender_id'),
+                num=count,
+                p_type=cart_item.get('p_type'),
+                target_id=cart_item.get('target_id'),
+                promo_id=cart_item.get('promo_id')
+            )
+        else:
+            logger.info('{0} 不在购物车中，开始加入购物车，数量 {1}'.format(sku_id, count))
+            return self.add_item_to_cart(sku_ids={sku_id: count})
 
     def get_checkout_page_detail(self):
-        """访问订单结算页面
+        """获取订单结算页面信息
 
-        该方法会打印出订单结算页面的详细信息：商品名称、价格、数量、库存状态等。
-        如果只是想下单商品，可以不调用该方法。
+        该方法会返回订单结算页面的详细信息：商品名称、价格、数量、库存状态等。
 
-        :return:
+        :return: 结算信息 dict
         """
         url = 'http://trade.jd.com/shopping/order/getOrderInfo.action'
         # url = 'https://cart.jd.com/gotoOrder.action'
@@ -675,26 +739,27 @@ class Assistant(object):
             if not response_status(resp):
                 logger.error('获取订单结算页信息失败')
                 return
-            soup = BeautifulSoup(resp.text, "html.parser")
 
+            soup = BeautifulSoup(resp.text, "html.parser")
             self.risk_control = get_tag_value(soup.select('input#riskControl'), 'value')
 
-            logger.info('************************订单结算页详情************************')
-            items = soup.select('div.goods-list div.goods-items')[1:]
-            checkout_item_detail = '商品名称:{0}----单价:{1}----数量:{2}----库存状态:{3}'
-            for item in items:
-                name = get_tag_value(item.select('div.p-name a'))
+            order_detail = {
+                'address': soup.find('span', id='sendAddr').text[5:],  # remove '寄送至： ' from the begin
+                'receiver': soup.find('span', id='sendMobile').text[4:],  # remove '收件人:' from the begin
+                'total_price': soup.find('span', id='sumPayPriceId').text[1:],  # remove '￥' from the begin
+                'items': []
+            }
+            for item in soup.select('div.goods-list div.goods-items'):
                 div_tag = item.select('div.p-price')[0]
-                price = get_tag_value(div_tag.select('strong.jd-price'))[2:]  # remove '￥ ' from the begin of price
-                quantity = get_tag_value(div_tag.select('span.p-num'))[1:]  # remove 'x' from the begin of quantity
-                state = get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
-                logger.info(checkout_item_detail.format(name, price, quantity, state))
+                order_detail.get('items').append({
+                    'name': get_tag_value(item.select('div.p-name a')),
+                    'price': get_tag_value(div_tag.select('strong.jd-price'))[2:],  # remove '￥ ' from the begin
+                    'num': get_tag_value(div_tag.select('span.p-num'))[1:],  # remove 'x' from the begin
+                    'state': get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
+                })
+            logger.info("下单信息：%s" % order_detail)
 
-            sum_price = soup.find('span', id='sumPayPriceId').text[1:]  # remove '￥' from the begin of sum price
-            address = soup.find('span', id='sendAddr').text[5:]  # remove '收件人:' from the begin of receiver
-            receiver = soup.find('span', id='sendMobile').text[4:]  # remove '寄送至： ' from the begin of address
-            logger.info('应付总额:{0}'.format(sum_price))
-            logger.info('收货地址:{0}----收件人:{1}'.format(address, receiver))
+            return order_detail
         except Exception as e:
             logger.error(e)
 
@@ -827,6 +892,26 @@ class Assistant(object):
             logger.error(e)
             return False
 
+    def submit_order_with_retry(self, retry=3, interval=4):
+        """提交订单，并且带有重试功能
+        :param retry: 重试次数
+        :param interval: 重试间隔
+        :return: 订单提交结果 True/False
+        """
+        for i in range(1, retry + 1):
+            logger.info('第{0}次尝试提交订单'.format(i))
+            self.get_checkout_page_detail()
+            if self.submit_order():
+                logger.info('第{0}次提交订单成功'.format(i))
+                return True
+            else:
+                if i < retry:
+                    logger.info('第{0}次提交失败，{1}s后重试'.format(i, interval))
+                    time.sleep(interval)
+        else:
+            logger.info('重试提交{0}次结束'.format(retry))
+            return False
+
     def submit_order_by_time(self, buy_time, retry=4, interval=5):
         """定时提交商品订单
 
@@ -852,27 +937,6 @@ class Assistant(object):
             time.sleep(interval)
         else:
             logger.info('执行结束，提交订单失败！')
-
-    def submit_order_by_stock(self, sku_ids, area, interval=3):
-        """当商品有库存时提交订单
-
-        重要：该方法只适用于普通商品的提交订单，事先需要先将商品加入购物车并勾选✓。
-        该方法会按照指定的间隔查询库存，当有货时提交订单。
-
-        :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
-        :param area: 地区id
-        :param interval: 查询库存间隔，可选参数，默认为3秒/次
-        :return:
-        """
-        while True:
-            if self.if_item_can_be_ordered(sku_ids=sku_ids, area=area):
-                logger.info('[%s] 满足下单条件，正在提交订单……' % sku_ids)
-                if self.submit_order():
-                    break
-            else:
-                logger.info('[%s] 不满足下单条件，%ss后再次查询' % (sku_ids, interval))
-
-            time.sleep(interval)
 
     def get_order_info(self, unpaid=True):
         """查询订单信息
@@ -1211,3 +1275,47 @@ class Assistant(object):
             time.sleep(interval)
         else:
             logger.info('执行结束，提交订单失败！')
+
+    def buy_item_in_stock(self, sku_ids, area, wait_all=False, stock_interval=3, submit_retry=3, submit_interval=5):
+        """根据库存自动下单商品
+        :param sku_ids: 商品id。可以设置多个商品，也可以带数量，如：'1234' 或 '1234,5678' 或 '1234:2' 或 '1234:2,5678:3'
+        :param area: 地区id
+        :param wait_all: 是否等所有商品都有货才一起下单，可选参数，默认False
+        :param stock_interval: 查询库存时间间隔，可选参数，默认3秒
+        :param submit_retry: 提交订单失败后重试次数，可选参数，默认3次
+        :param submit_interval: 提交订单失败后重试时间间隔，可选参数，默认5秒
+        :return:
+        """
+        items_dict = parse_sku_id(sku_ids)
+        items_list = list(items_dict.keys())
+
+        if not wait_all:
+            logger.info('下单模式：{0} 任一商品有货并且未下架均会尝试下单'.format(items_list))
+            while True:
+                for (sku_id, count) in items_dict.items():
+                    if not self.if_item_can_be_ordered(sku_ids={sku_id: count}, area=area):
+                        logger.info('{0} 不满足下单条件，{1}s后进行下一次查询'.format(sku_id, stock_interval))
+                    else:
+                        logger.info('{0} 满足下单条件，开始执行'.format(sku_id))
+                        self._cancel_select_all_cart_item()
+                        self._add_or_change_cart_item(self.get_cart_detail(), sku_id, count)
+                        if self.submit_order_with_retry(submit_retry, submit_interval):
+                            return
+
+                    time.sleep(stock_interval)
+        else:
+            logger.info('下单模式：{0} 所有都商品同时有货并且未下架才会尝试下单'.format(items_list))
+            while True:
+                if not self.if_item_can_be_ordered(sku_ids=sku_ids, area=area):
+                    logger.info('{0} 不满足下单条件，{1}s后进行下一次查询'.format(items_list, stock_interval))
+                else:
+                    logger.info('{0} 满足下单条件，开始执行'.format(items_list))
+                    self._cancel_select_all_cart_item()
+                    shopping_cart = self.get_cart_detail()
+                    for (sku_id, count) in items_dict.items():
+                        self._add_or_change_cart_item(shopping_cart, sku_id, count)
+
+                    if self.submit_order_with_retry(submit_retry, submit_interval):
+                        return
+
+                time.sleep(stock_interval)
