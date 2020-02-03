@@ -280,7 +280,7 @@ class Assistant(object):
         resp = self.sess.get(url=url, headers=headers, params=payload)
 
         if not response_status(resp):
-            logger.error('获取二维码扫描结果出错')
+            logger.error('获取二维码扫描结果异常')
             return False
 
         resp_json = parse_json(resp.text)
@@ -447,7 +447,14 @@ class Assistant(object):
             'User-Agent': USER_AGENT,
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
-        resp = requests.get(url=url, params=payload, headers=headers)
+        try:
+            resp = requests.get(url=url, params=payload, headers=headers, timeout=10)
+        except requests.exceptions.Timeout:
+            logger.error('查询 %s 库存信息超时(10s)', sku_id)
+            return False
+        except requests.exceptions.RequestException as e:
+            raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
+
         resp_json = parse_json(resp.text)
         stock_state = resp_json['stock']['StockState']  # 33 -- 现货  0,34 -- 无货  36 -- '采购中'  40 -- 可配货
         # stock_state_name = resp_json['stock']['StockStateName']
@@ -491,7 +498,14 @@ class Assistant(object):
         # convert to string
         data = json.dumps(data)
 
-        resp = self.sess.post(url=url, headers=headers, data=data)
+        try:
+            resp = self.sess.post(url=url, headers=headers, data=data, timeout=10)
+        except requests.exceptions.Timeout:
+            logger.error('查询 %s 库存信息超时(10s)', list(items_dict.keys()))
+            return False
+        except requests.exceptions.RequestException as e:
+            raise AsstException('查询 %s 库存信息异常：%s' % (list(items_dict.keys()), e))
+
         resp_json = parse_json(resp.text)
         result = resp_json.get('result')
 
@@ -764,19 +778,22 @@ class Assistant(object):
                 'total_price': soup.find('span', id='sumPayPriceId').text[1:],  # remove '￥' from the begin
                 'items': []
             }
-            for item in soup.select('div.goods-list div.goods-items'):
-                div_tag = item.select('div.p-price')[0]
-                order_detail.get('items').append({
-                    'name': get_tag_value(item.select('div.p-name a')),
-                    'price': get_tag_value(div_tag.select('strong.jd-price'))[2:],  # remove '￥ ' from the begin
-                    'num': get_tag_value(div_tag.select('span.p-num'))[1:],  # remove 'x' from the begin
-                    'state': get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
-                })
-            logger.info("下单信息：%s", order_detail)
+            # TODO: 这里可能会产生解析问题，待修复
+            # for item in soup.select('div.goods-list div.goods-items'):
+            #     div_tag = item.select('div.p-price')[0]
+            #     order_detail.get('items').append({
+            #         'name': get_tag_value(item.select('div.p-name a')),
+            #         'price': get_tag_value(div_tag.select('strong.jd-price'))[2:],  # remove '￥ ' from the begin
+            #         'num': get_tag_value(div_tag.select('span.p-num'))[1:],  # remove 'x' from the begin
+            #         'state': get_tag_value(div_tag.select('span.p-state'))  # in stock or out of stock
+            #     })
 
+            logger.info("下单信息：%s", order_detail)
             return order_detail
+        except requests.exceptions.RequestException as e:
+            raise AsstException('订单结算页面获取异常：%s' % e)
         except Exception as e:
-            logger.error(e)
+            logger.error('下单页面数据解析异常：%s', e)
 
     def _save_invoice(self):
         """下单第三方商品时如果未设置发票，将从电子发票切换为普通发票
