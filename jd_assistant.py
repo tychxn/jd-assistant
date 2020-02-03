@@ -19,6 +19,7 @@ from util import (
     DEFAULT_FP,
     DEFAULT_EID,
     DEFAULT_TRACK_ID,
+    DEFAULT_TIMEOUT,
     check_login,
     deprecated,
     encrypt_pwd,
@@ -53,6 +54,7 @@ class Assistant(object):
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
         self.fp = global_config.get('config', 'fp') or DEFAULT_FP
         self.track_id = DEFAULT_TRACK_ID
+        self.timeout = float(global_config.get('config', 'timeout')) or DEFAULT_TIMEOUT
 
         self.seckill_init_info = dict()
         self.seckill_order_data = dict()
@@ -448,9 +450,9 @@ class Assistant(object):
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
         try:
-            resp = requests.get(url=url, params=payload, headers=headers, timeout=10)
+            resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            logger.error('查询 %s 库存信息超时(10s)', sku_id)
+            logger.error('查询 %s 库存信息超时(%ss)', self.timeout)
             return False
         except requests.exceptions.RequestException as e:
             raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
@@ -500,9 +502,9 @@ class Assistant(object):
         data = json.dumps(data)
 
         try:
-            resp = self.sess.post(url=url, headers=headers, data=data, timeout=10)
+            resp = self.sess.post(url=url, headers=headers, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            logger.error('查询 %s 库存信息超时(10s)', list(items_dict.keys()))
+            logger.error('查询 %s 库存信息超时(%ss)', list(items_dict.keys()), self.timeout)
             return False
         except requests.exceptions.RequestException as e:
             raise AsstException('查询 %s 库存信息异常：%s' % (list(items_dict.keys()), e))
@@ -543,9 +545,9 @@ class Assistant(object):
             'User-Agent': USER_AGENT
         }
         try:
-            resp = requests.get(url=url, params=payload, headers=headers, timeout=10)
+            resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            logger.error('查询 %s 库存信息超时(10s)', list(items_dict.keys()))
+            logger.error('查询 %s 库存信息超时(%ss)', list(items_dict.keys()), self.timeout)
             return False
         except requests.exceptions.RequestException as e:
             raise AsstException('查询 %s 库存信息异常：%s' % (list(items_dict.keys()), e))

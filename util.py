@@ -28,6 +28,8 @@ DEFAULT_FP = '18c7d83a053e6bbb51f755aea595bbb8'
 
 DEFAULT_TRACK_ID = '9643cbd55bbbe103eef18a213e069eb0'
 
+DEFAULT_TIMEOUT = 10
+
 
 def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
     rsa_key = RSA.importKey(public_key)
