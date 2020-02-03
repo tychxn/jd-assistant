@@ -875,6 +875,7 @@ class Assistant(object):
             'submitOrderParam.eid': self.eid,
             'submitOrderParam.fp': self.fp,
             'submitOrderParam.needCheck': 1,
+            'submitOrderParam.isBestCoupon': 1
         }
 
         # add payment password when necessary
