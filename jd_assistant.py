@@ -91,9 +91,11 @@ class Assistant(object):
         }
         try:
             resp = self.sess.get(url=url, params=payload, allow_redirects=False)
-            return resp.status_code == requests.codes.OK
+            if resp.status_code == requests.codes.OK:
+                return True
         except Exception as e:
             logger.error(e)
+
         self.sess = requests.session()
         return False
 
