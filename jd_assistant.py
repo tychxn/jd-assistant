@@ -48,7 +48,6 @@ class Assistant(object):
 
         self.item_cat = dict()
         self.item_vender_ids = dict()  # 记录商家id
-        self.item_states = dict()  # 记录商品上架状态
 
         self.risk_control = ''
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
@@ -419,6 +418,7 @@ class Assistant(object):
         :return: 商品是否有货 True/False
         """
         area_id = parse_area_id(area)
+
         cat = self.item_cat.get(sku_id)
         vender_id = self.item_vender_ids.get(sku_id)
         if not cat:
@@ -456,13 +456,14 @@ class Assistant(object):
             raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
 
         resp_json = parse_json(resp.text)
-        stock_state = resp_json['stock']['StockState']  # 33 -- 现货  0,34 -- 无货  36 -- '采购中'  40 -- 可配货
+        sku_state = resp_json['stock']['skuState']  # 商品是否上架
+        stock_state = resp_json['stock']['StockState']  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
         # stock_state_name = resp_json['stock']['StockStateName']
-        return stock_state in (33, 40)
+        return sku_state == 1 and stock_state in (33, 40)
 
     @check_login
     def get_multi_item_stock(self, sku_ids, area):
-        """获取多个商品库存状态
+        """获取多个商品库存状态（旧）
 
         该方法需要登陆才能调用，用于同时查询多个商品的库存。
         京东查询接口返回每种商品的状态：有货/无货。当所有商品都有货，返回True；否则，返回False。
@@ -518,6 +519,48 @@ class Assistant(object):
 
         return stock
 
+    def get_multi_item_stock_new(self, sku_ids, area):
+        """获取多个商品库存状态（新）
+
+        当所有商品都有货，返回True；否则，返回False。
+
+        :param sku_ids: 多个商品的id。可以传入中间用英文逗号的分割字符串，如"123,456"
+        :param area: 地区id
+        :return: 多个商品是否同时有货 True/False
+        """
+        items_dict = parse_sku_id(sku_ids=sku_ids)
+        area_id = parse_area_id(area=area)
+
+        url = 'https://c0.3.cn/stocks'
+        payload = {
+            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
+            'type': 'getstocks',
+            'skuIds': ','.join(items_dict.keys()),
+            'area': area_id,
+            '_': str(int(time.time() * 1000))
+        }
+        headers = {
+            'User-Agent': USER_AGENT
+        }
+        try:
+            resp = requests.get(url=url, params=payload, headers=headers, timeout=10)
+        except requests.exceptions.Timeout:
+            logger.error('查询 %s 库存信息超时(10s)', list(items_dict.keys()))
+            return False
+        except requests.exceptions.RequestException as e:
+            raise AsstException('查询 %s 库存信息异常：%s' % (list(items_dict.keys()), e))
+
+        stock = True
+        for sku_id, info in parse_json(resp.text).items():
+            sku_state = info.get('skuState')  # 商品是否上架
+            stock_state = info.get('StockState')  # 商品库存状态
+            if sku_state == 1 and stock_state in (33, 40):
+                continue
+            else:
+                stock = False
+                break
+        return stock
+
     def _if_item_removed(self, sku_id):
         """判断商品是否下架
         :param sku_id: 商品id
@@ -529,11 +572,6 @@ class Assistant(object):
     @check_login
     def if_item_can_be_ordered(self, sku_ids, area):
         """判断商品是否能下单
-
-        执行逻辑：
-        1. 查询京东单个/多个商品库存接口是否有货
-        2. 查询商品是否下架（存在查询库存接口显示有货，但是商品已下架的情况）
-
         :param sku_ids: 商品id，多个商品id中间使用英文逗号进行分割
         :param area: 地址id
         :return: 商品是否能下单 True/False
@@ -541,26 +579,12 @@ class Assistant(object):
         items_dict = parse_sku_id(sku_ids=sku_ids)
         area_id = parse_area_id(area)
 
-        # 查询商品库存
+        # 判断商品是否能下单
         if len(items_dict) > 1:
-            in_stock = self.get_multi_item_stock(sku_ids=items_dict, area=area_id)
-        else:
-            sku_id, count = list(items_dict.items())[0]
-            in_stock = self.get_single_item_stock(sku_id=sku_id, num=count, area=area_id)
+            return self.get_multi_item_stock_new(sku_ids=items_dict, area=area_id)
 
-        if not in_stock:
-            return False
-
-        for sku_id in items_dict:
-            if self.item_states.get(sku_id, False):  # 商品已上架
-                continue
-
-            if self._if_item_removed(sku_id=sku_id):  # 商品未上架
-                return False
-            else:
-                self.item_states[sku_id] = True
-
-        return True
+        sku_id, count = list(items_dict.items())[0]
+        return self.get_single_item_stock(sku_id=sku_id, num=count, area=area_id)
 
     def get_item_price(self, sku_id):
         """获取商品价格
@@ -654,8 +678,8 @@ class Assistant(object):
 
         cart_detail = dict()
         for item in soup.find_all(class_='item-item'):
-            sku_id = item['skuid']  # 商品id
             try:
+                sku_id = item['skuid']  # 商品id
                 # 例如：['increment', '8888', '100001071956', '1', '13', '0', '50067652554']
                 # ['increment', '8888', '100002404322', '2', '1', '0']
                 item_attr_list = item.find(class_='increment')['id'].split('_')
@@ -674,7 +698,7 @@ class Assistant(object):
                     'promo_id': promo_id
                 }
             except Exception as e:
-                logger.error("商品%s在购物车中的信息无法解析，报错信息: %s，该商品自动忽略", sku_id, e)
+                logger.error("某商品在购物车中的信息无法解析，报错信息: %s，该商品自动忽略。 %s", e, item)
 
         logger.info('购物车信息：%s', cart_detail)
         return cart_detail

@@ -122,17 +122,19 @@ def parse_area_id(area):
     :param area: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
     :return: 解析后字符串
     """
-    return area.replace('-', '_')
+    area_id_list = list(map(lambda x: x.strip(), re.split('_|-', area)))
+    area_id_list.extend((4 - len(area_id_list)) * ['0'])
+    return '_'.join(area_id_list)
 
 
-def split_area_id(area_id):
+def split_area_id(area):
     """将地区id字符串按照下划线进行切割，构成数组。数组长度不满4位则用'0'进行填充。
-    :param area_id: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
+    :param area: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
     :return: list
     """
-    area = re.split('_|-', area_id)
-    area.extend((4 - len(area)) * ['0'])
-    return area
+    area_id_list = list(map(lambda x: x.strip(), re.split('_|-', area)))
+    area_id_list.extend((4 - len(area_id_list)) * ['0'])
+    return area_id_list
 
 
 def deprecated(func):
