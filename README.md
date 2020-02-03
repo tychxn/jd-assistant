@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/tychxn/jd-assistant)
 
-京东抢购助手
+京东抢购助手（短期内不再更新）
 
 ## 主要功能
 
@@ -73,7 +73,6 @@ pip install -r requirements.txt
 - 京东商城的登陆/下单机制经常改动，当前测试时间`2020.01.28`。如果失效，欢迎提issue，我会来更新。
 - 图片查看器背景颜色为黑色时，二维码会出现无法扫描的情况 (多发于`win10`系统)，请更换软件打开图片。
 - 代码在`macOS`中编写，如果在其他平台上运行出行问题，欢迎提issue。
-- 如果 `git clone` 速度太慢，请去下方 `码云` 备份地址下载。
 
 ## 待完成的功能
 
@@ -84,8 +83,3 @@ pip install -r requirements.txt
 
 - ✖️ 支付功能
 - ✖️ 多账号抢购
-
-## 备份地址
-
-- GitHub: [https://github.com/tychxn/jd-assistant](https://github.com/tychxn/jd-assistant)
-- 码云: [https://gitee.com/tychxn/jd-assistant](https://gitee.com/tychxn/jd-assistant)
