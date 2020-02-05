@@ -5,7 +5,6 @@ import json
 
 import requests
 
-from config import global_config
 from exception import AsstException
 from log import logger
 
@@ -13,8 +12,7 @@ from log import logger
 class Messenger(object):
     """消息推送类"""
 
-    def __init__(self):
-        sc_key = global_config.get('messenger', 'sckey').strip()
+    def __init__(self, sc_key):
         if not sc_key:
             raise AsstException('sc_key can not be empty')
 

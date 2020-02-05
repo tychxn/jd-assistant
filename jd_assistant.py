@@ -50,7 +50,7 @@ class Assistant(object):
 
         self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
         self.send_message = global_config.getboolean('messenger', 'enable')
-        self.messenger = Messenger() if self.send_message else None
+        self.messenger = Messenger(global_config.get('messenger', 'sckey').strip()) if self.send_message else None
 
         self.item_cat = dict()
         self.item_vender_ids = dict()  # 记录商家id
