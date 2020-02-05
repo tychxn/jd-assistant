@@ -49,7 +49,10 @@ def open_image(image_file):
         os.system('start ' + image_file)  # for Windows
     else:
         if os.uname()[0] == "Linux":
-            os.system("eog " + image_file)  # for Linux
+            if "deepin" in os.uname()[2]:
+                os.system("deepin-image-viewer " + image_file)  # for deepin
+            else:
+                os.system("eog " + image_file)  # for Linux
         else:
             os.system("open " + image_file)  # for Mac
 
