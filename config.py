@@ -5,6 +5,7 @@ import configparser
 
 
 class Config(object):
+
     def __init__(self, config_file='config.ini'):
         self._path = os.path.join(os.getcwd(), config_file)
         if not os.path.exists(self._path):
@@ -14,6 +15,9 @@ class Config(object):
 
     def get(self, section, name):
         return self._config.get(section, name)
+
+    def getboolean(self, section, name):
+        return self._config.getboolean(section, name)
 
 
 global_config = Config()

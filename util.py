@@ -10,6 +10,7 @@ from base64 import b64encode
 import requests
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
+from fake_useragent import UserAgent
 
 from log import logger
 
@@ -20,13 +21,9 @@ AzWBmDMn8riHrDDNpUpJnlAGUqJG9ooPn8j7YNpcxCa1iybOlc2kEhmJn5uwoanQ
 q+CA6agNkqly2H4j6wIDAQAB
 -----END PUBLIC KEY-----"""
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
 
-DEFAULT_EID = 'D5GZVU5ZO5VBUFMLOUHMNHK2BXXVKI4ZQK3JKCOIB4PRERKTQXV3BNSG557BQLPVVT4ZN3NKVSXAKTVPJXDEPEBDGU'
-
-DEFAULT_FP = '18c7d83a053e6bbb51f755aea595bbb8'
-
-DEFAULT_TRACK_ID = '9643cbd55bbbe103eef18a213e069eb0'
+DEFAULT_TIMEOUT = 10
 
 
 def encrypt_pwd(password, public_key=RSA_PUBLIC_KEY):
@@ -122,17 +119,19 @@ def parse_area_id(area):
     :param area: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
     :return: 解析后字符串
     """
-    return area.replace('-', '_')
+    area_id_list = list(map(lambda x: x.strip(), re.split('_|-', area)))
+    area_id_list.extend((4 - len(area_id_list)) * ['0'])
+    return '_'.join(area_id_list)
 
 
-def split_area_id(area_id):
+def split_area_id(area):
     """将地区id字符串按照下划线进行切割，构成数组。数组长度不满4位则用'0'进行填充。
-    :param area_id: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
+    :param area: 地区id字符串（使用 _ 或 - 进行分割），如 12_904_3375 或 12-904-3375
     :return: list
     """
-    area = re.split('_|-', area_id)
-    area.extend((4 - len(area)) * ['0'])
-    return area
+    area_id_list = list(map(lambda x: x.strip(), re.split('_|-', area)))
+    area_id_list.extend((4 - len(area_id_list)) * ['0'])
+    return area_id_list
 
 
 def deprecated(func):
@@ -165,3 +164,11 @@ def check_login(func):
         return func(self, *args, **kwargs)
 
     return new_func
+
+
+def get_random_useragent():
+    """生成随机的UserAgent
+    :return: UserAgent字符串
+    """
+    ua = UserAgent()
+    return ua.random
