@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from config import global_config
 from exception import AsstException
 from log import logger
+from messenger import Messenger
 from timer import Timer
 from util import (
     USER_AGENT,
@@ -54,11 +55,14 @@ class Assistant(object):
         self.eid = global_config.get('config', 'eid') or DEFAULT_EID
         self.fp = global_config.get('config', 'fp') or DEFAULT_FP
         self.track_id = DEFAULT_TRACK_ID
-        self.timeout = float(global_config.get('config', 'timeout')) or DEFAULT_TIMEOUT
+        self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
 
         self.seckill_init_info = dict()
         self.seckill_order_data = dict()
         self.seckill_url = dict()
+
+        self.send_message = global_config.get('messenger', 'enable').strip() in ['True', 'true', '1']
+        self.messenger = Messenger() if self.send_message else None
 
         try:
             self._load_cookies()
@@ -452,7 +456,7 @@ class Assistant(object):
         try:
             resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            logger.error('查询 %s 库存信息超时(%ss)', self.timeout)
+            logger.error('查询 %s 库存信息超时(%ss)', sku_id, self.timeout)
             return False
         except requests.exceptions.RequestException as e:
             raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
@@ -929,7 +933,10 @@ class Assistant(object):
             # {'overSea': False, 'orderXml': None, 'cartXml': None, 'noStockSkuIds': '', 'reqInfo': None, 'hasJxj': False, 'addedServiceList': None, 'sign': None, 'pin': 'xxx', 'needCheckCode': False, 'success': True, 'resultCode': 0, 'orderId': 8740xxxxx, 'submitSkuNum': 1, 'deductMoneyFlag': 0, 'goJumpOrderCenter': False, 'payInfo': None, 'scaleSkuInfoListVO': None, 'purchaseSkuInfoListVO': None, 'noSupportHomeServiceSkuList': None, 'msgMobile': None, 'addressVO': None, 'msgUuid': None, 'message': None}
 
             if resp_json.get('success'):
-                logger.info('订单提交成功! 订单号：%s', resp_json.get('orderId'))
+                order_id = resp_json.get('orderId')
+                logger.info('订单提交成功! 订单号：%s', order_id)
+                if self.send_message:
+                    self.messenger.send(text='jd-assistant 订单提交成功', desp='订单号：%s' % order_id)
                 return True
             else:
                 message, result_code = resp_json.get('message'), resp_json.get('resultCode')
