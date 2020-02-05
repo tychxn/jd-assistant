@@ -16,14 +16,15 @@ from log import logger
 from messenger import Messenger
 from timer import Timer
 from util import (
-    USER_AGENT,
     DEFAULT_TRACK_ID,
     DEFAULT_TIMEOUT,
+    DEFAULT_USER_AGENT,
     check_login,
     deprecated,
     encrypt_pwd,
     encrypt_payment_pwd,
     get_tag_value,
+    get_random_useragent,
     open_image,
     parse_area_id,
     parse_json,
@@ -41,8 +42,11 @@ class Assistant(object):
         self.username = ''
         self.nick_name = ''
         self.is_login = False
+
+        use_random_ua = global_config.getboolean('config', 'random_useragent')
+        self.user_agent = DEFAULT_USER_AGENT if not use_random_ua else get_random_useragent()
         self.headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
         }
         self.sess = requests.session()
 
@@ -62,7 +66,7 @@ class Assistant(object):
         self.seckill_order_data = dict()
         self.seckill_url = dict()
 
-        self.send_message = global_config.get('messenger', 'enable').strip() in ['True', 'true', '1']
+        self.send_message = global_config.getboolean('messenger', 'enable')
         self.messenger = Messenger() if self.send_message else None
 
         try:
@@ -135,7 +139,7 @@ class Assistant(object):
             'yys': str(int(time.time() * 1000)),
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://passport.jd.com/uc/login',
         }
         resp = self.sess.get(url, params=payload, headers=headers)
@@ -203,7 +207,7 @@ class Assistant(object):
         data['loginname'] = username
         data['nloginpwd'] = encrypt_pwd(password)
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Origin': 'https://passport.jd.com',
         }
         resp = self.sess.post(url=login_url, data=data, headers=headers, params=payload)
@@ -256,7 +260,7 @@ class Assistant(object):
             't': str(int(time.time() * 1000)),
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://passport.jd.com/new/login.aspx',
         }
         resp = self.sess.get(url=url, headers=headers, params=payload)
@@ -280,7 +284,7 @@ class Assistant(object):
             '_': str(int(time.time() * 1000)),
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://passport.jd.com/new/login.aspx',
         }
         resp = self.sess.get(url=url, headers=headers, params=payload)
@@ -300,7 +304,7 @@ class Assistant(object):
     def _validate_QRcode_ticket(self, ticket):
         url = 'https://passport.jd.com/uc/qrCodeTicketValidation'
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://passport.jd.com/uc/login?ltype=logout',
         }
         resp = self.sess.get(url=url, headers=headers, params={'t': ticket})
@@ -356,7 +360,7 @@ class Assistant(object):
             'sku': sku_id,
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
         resp = self.sess.get(url=url, params=payload, headers=headers)
@@ -376,7 +380,7 @@ class Assistant(object):
             logger.error('%s 非预约商品', sku_id)
             return
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
         resp = self.sess.get(url=reserve_url, headers=headers)
@@ -396,7 +400,7 @@ class Assistant(object):
             '_': str(int(time.time() * 1000)),
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://order.jd.com/center/list.action',
         }
         try:
@@ -451,7 +455,7 @@ class Assistant(object):
             'venderId': vender_id  # return seller information with this param (can't be ignored)
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
         try:
@@ -484,7 +488,7 @@ class Assistant(object):
 
         url = 'https://trade.jd.com/api/v1/batch/stock'
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Origin': 'https://trade.jd.com',
             'Content-Type': 'application/json; charset=UTF-8',
             'Referer': 'https://trade.jd.com/shopping/order/getOrderInfo.action?rid=' + str(int(time.time() * 1000)),
@@ -547,7 +551,7 @@ class Assistant(object):
             '_': str(int(time.time() * 1000))
         }
         headers = {
-            'User-Agent': USER_AGENT
+            'User-Agent': self.user_agent
         }
         try:
             resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
@@ -623,7 +627,7 @@ class Assistant(object):
         """
         url = 'https://cart.jd.com/gate.action'
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
         }
 
         for sku_id, count in parse_sku_id(sku_ids=sku_ids).items():
@@ -750,7 +754,7 @@ class Assistant(object):
             # 'locationId'
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://cart.jd.com/cart',
         }
         resp = self.sess.post(url, data=data, headers=headers)
@@ -874,7 +878,7 @@ class Assistant(object):
             "invoiceParam.saveInvoiceFlag": 1
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://trade.jd.com/shopping/dynamic/invoice/saveInvoice.action',
         }
         self.sess.post(url=url, data=data, headers=headers)
@@ -914,7 +918,7 @@ class Assistant(object):
             data['submitOrderParam.payPassword'] = encrypt_payment_pwd(payment_pwd)
 
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'trade.jd.com',
             'Referer': 'http://trade.jd.com/shopping/order/getOrderInfo.action',
         }
@@ -1012,7 +1016,7 @@ class Assistant(object):
             's': 4096,
         }  # Orders for nearly three months
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Referer': 'https://passport.jd.com/uc/login?ltype=logout',
         }
 
@@ -1095,7 +1099,7 @@ class Assistant(object):
             '_': str(int(time.time() * 1000)),
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'itemko.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
@@ -1122,7 +1126,7 @@ class Assistant(object):
         if not self.seckill_url.get(sku_id):
             self.seckill_url[sku_id] = self._get_seckill_url(sku_id)
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'marathon.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
@@ -1142,7 +1146,7 @@ class Assistant(object):
             'rid': int(time.time())
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'marathon.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
@@ -1162,7 +1166,7 @@ class Assistant(object):
             'isModifyAddress': 'false',
         }
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'marathon.jd.com',
         }
         resp = self.sess.post(url=url, data=data, headers=headers)
@@ -1235,7 +1239,7 @@ class Assistant(object):
         if not self.seckill_order_data.get(sku_id):
             self.seckill_order_data[sku_id] = self._gen_seckill_order_data(sku_id, num)
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': self.user_agent,
             'Host': 'marathon.jd.com',
             'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
                 sku_id, num, int(time.time())),

@@ -10,6 +10,7 @@ from base64 import b64encode
 import requests
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
+from fake_useragent import UserAgent
 
 from log import logger
 
@@ -20,7 +21,7 @@ AzWBmDMn8riHrDDNpUpJnlAGUqJG9ooPn8j7YNpcxCa1iybOlc2kEhmJn5uwoanQ
 q+CA6agNkqly2H4j6wIDAQAB
 -----END PUBLIC KEY-----"""
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
 
 DEFAULT_TRACK_ID = '9643cbd55bbbe103eef18a213e069eb0'
 
@@ -165,3 +166,11 @@ def check_login(func):
         return func(self, *args, **kwargs)
 
     return new_func
+
+
+def get_random_useragent():
+    """生成随机的UserAgent
+    :return: UserAgent字符串
+    """
+    ua = UserAgent()
+    return ua.random

@@ -39,6 +39,7 @@
 - [Requests](http://docs.python-requests.org/en/master/)
 - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
 - [PyCryptodome](https://github.com/Legrandin/pycryptodome)
+- [fake-useragent](https://github.com/hellysmile/fake-useragent)
 
 安装：
 ```sh
