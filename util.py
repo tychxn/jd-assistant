@@ -23,8 +23,6 @@ q+CA6agNkqly2H4j6wIDAQAB
 
 DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
 
-DEFAULT_TRACK_ID = '9643cbd55bbbe103eef18a213e069eb0'
-
 DEFAULT_TIMEOUT = 10
 
 

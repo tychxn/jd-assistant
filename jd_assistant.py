@@ -16,7 +16,6 @@ from log import logger
 from messenger import Messenger
 from timer import Timer
 from util import (
-    DEFAULT_TRACK_ID,
     DEFAULT_TIMEOUT,
     DEFAULT_USER_AGENT,
     check_login,
@@ -39,36 +38,31 @@ from util import (
 class Assistant(object):
 
     def __init__(self):
-        self.username = ''
-        self.nick_name = ''
-        self.is_login = False
-
         use_random_ua = global_config.getboolean('config', 'random_useragent')
         self.user_agent = DEFAULT_USER_AGENT if not use_random_ua else get_random_useragent()
-        self.headers = {
-            'User-Agent': self.user_agent,
-        }
-        self.sess = requests.session()
+        self.headers = {'User-Agent': self.user_agent}
+        self.eid = global_config.get('config', 'eid').strip()
+        self.fp = global_config.get('config', 'fp').strip()
+        self.track_id = global_config.get('config', 'track_id').strip()
+        self.risk_control = global_config.get('config', 'risk_control').strip()
+        if not self.eid or not self.fp or not self.track_id or not self.risk_control:
+            raise AsstException('请在 config.ini 中配置 eid, fp, track_id, risk_control 参数，具体请参考 wiki-常见问题')
+
+        self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
+        self.send_message = global_config.getboolean('messenger', 'enable')
+        self.messenger = Messenger() if self.send_message else None
 
         self.item_cat = dict()
         self.item_vender_ids = dict()  # 记录商家id
-
-        self.risk_control = ''
-        self.eid = global_config.get('config', 'eid').strip()
-        self.fp = global_config.get('config', 'fp').strip()
-        if not self.eid or not self.fp:
-            raise AsstException('请在 config.ini 中配置 eid 和 fp 参数')
-
-        self.track_id = DEFAULT_TRACK_ID
-        self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
 
         self.seckill_init_info = dict()
         self.seckill_order_data = dict()
         self.seckill_url = dict()
 
-        self.send_message = global_config.getboolean('messenger', 'enable')
-        self.messenger = Messenger() if self.send_message else None
-
+        self.username = ''
+        self.nick_name = ''
+        self.is_login = False
+        self.sess = requests.session()
         try:
             self._load_cookies()
         except Exception:
