@@ -17,8 +17,6 @@ from messenger import Messenger
 from timer import Timer
 from util import (
     USER_AGENT,
-    DEFAULT_FP,
-    DEFAULT_EID,
     DEFAULT_TRACK_ID,
     DEFAULT_TIMEOUT,
     check_login,
@@ -52,8 +50,11 @@ class Assistant(object):
         self.item_vender_ids = dict()  # 记录商家id
 
         self.risk_control = ''
-        self.eid = global_config.get('config', 'eid') or DEFAULT_EID
-        self.fp = global_config.get('config', 'fp') or DEFAULT_FP
+        self.eid = global_config.get('config', 'eid').strip()
+        self.fp = global_config.get('config', 'fp').strip()
+        if not self.eid or not self.fp:
+            raise AsstException('请在 config.ini 中配置 eid 和 fp 参数')
+
         self.track_id = DEFAULT_TRACK_ID
         self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
 
