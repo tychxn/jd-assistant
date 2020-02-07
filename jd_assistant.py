@@ -463,7 +463,7 @@ class Assistant(object):
         resp_json = parse_json(resp.text)
         stock_info = resp_json.get('stock')
         if not stock_info:
-            logger.error('查询 %s 库存信息异常' ,sku_id)
+            logger.error('查询 %s 库存信息异常, resp: %s', sku_id, resp_json)
             return False
         
         sku_state = stock_info.get('skuState')  # 商品是否上架
