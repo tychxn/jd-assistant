@@ -41,16 +41,16 @@ class Assistant(object):
         use_random_ua = global_config.getboolean('config', 'random_useragent')
         self.user_agent = DEFAULT_USER_AGENT if not use_random_ua else get_random_useragent()
         self.headers = {'User-Agent': self.user_agent}
-        self.eid = global_config.get('config', 'eid').strip()
-        self.fp = global_config.get('config', 'fp').strip()
-        self.track_id = global_config.get('config', 'track_id').strip()
-        self.risk_control = global_config.get('config', 'risk_control').strip()
+        self.eid = global_config.get('config', 'eid')
+        self.fp = global_config.get('config', 'fp')
+        self.track_id = global_config.get('config', 'track_id')
+        self.risk_control = global_config.get('config', 'risk_control')
         if not self.eid or not self.fp or not self.track_id or not self.risk_control:
             raise AsstException('请在 config.ini 中配置 eid, fp, track_id, risk_control 参数，具体请参考 wiki-常见问题')
 
         self.timeout = float(global_config.get('config', 'timeout') or DEFAULT_TIMEOUT)
         self.send_message = global_config.getboolean('messenger', 'enable')
-        self.messenger = Messenger(global_config.get('messenger', 'sckey').strip()) if self.send_message else None
+        self.messenger = Messenger(global_config.get('messenger', 'sckey')) if self.send_message else None
 
         self.item_cat = dict()
         self.item_vender_ids = dict()  # 记录商家id

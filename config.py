@@ -13,8 +13,14 @@ class Config(object):
         self._config = configparser.ConfigParser()
         self._config.read(self._path, encoding='utf-8')
 
-    def get(self, section, name):
-        return self._config.get(section, name)
+    def get(self, section, name, strip_blank=True, strip_quote=True):
+        s = self._config.get(section, name)
+        if strip_blank:
+            s = s.strip()
+        if strip_quote:
+            s = s.strip('"').strip("'")
+
+        return s
 
     def getboolean(self, section, name):
         return self._config.getboolean(section, name)
