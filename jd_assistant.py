@@ -461,9 +461,13 @@ class Assistant(object):
             raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
 
         resp_json = parse_json(resp.text)
-        sku_state = resp_json['stock']['skuState']  # 商品是否上架
-        stock_state = resp_json['stock']['StockState']  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
-        # stock_state_name = resp_json['stock']['StockStateName']
+        stock_info = resp_json.get('stock')
+        if not stock_info:
+            logger.error('查询 %s 库存信息异常, resp: %s', sku_id, resp_json)
+            return False
+
+        sku_state = stock_info.get('skuState')  # 商品是否上架
+        stock_state = stock_info.get('StockState')  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
         return sku_state == 1 and stock_state in (33, 40)
 
     @check_login
