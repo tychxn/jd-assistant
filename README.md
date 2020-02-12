@@ -84,3 +84,7 @@ pip install -r requirements.txt
 
 - ✖️ 支付功能
 - ✖️ 多账号抢购
+
+## Sponsor
+
+[![JetBrains](./docs/jetbrains.svg)](https://www.jetbrains.com/?from=jd-assistant)
