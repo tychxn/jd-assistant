@@ -364,11 +364,14 @@ class Assistant(object):
         return 'https:' + reserve_url if reserve_url else None
 
     @check_login
-    def make_reserve(self, sku_id):
+    def make_reserve(self, sku_id, buy_time ):
         """商品预约
         :param sku_id: 商品id
+        :param buy_time: 预约时间
         :return:
         """
+        t = Timer(buy_time=buy_time)
+        t.start()
         reserve_url = self._get_reserve_url(sku_id)
         if not reserve_url:
             logger.error('%s 非预约商品', sku_id)
