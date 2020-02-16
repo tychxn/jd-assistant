@@ -829,10 +829,8 @@ class Assistant(object):
 
             logger.info("下单信息：%s", order_detail)
             return order_detail
-        except requests.exceptions.RequestException as e:
-            raise AsstException('订单结算页面获取异常：%s' % e)
         except Exception as e:
-            logger.error('下单页面数据解析异常：%s', e)
+            logger.error('订单结算页面数据解析异常（可以忽略），报错信息：%s', e)
 
     def _save_invoice(self):
         """下单第三方商品时如果未设置发票，将从电子发票切换为普通发票
