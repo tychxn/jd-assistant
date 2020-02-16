@@ -452,23 +452,24 @@ class Assistant(object):
             'User-Agent': self.user_agent,
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
+
+        resp_text = ''
         try:
-            resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
+            resp_text = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout).text
+            resp_json = parse_json(resp_text)
+            stock_info = resp_json.get('stock')
+            sku_state = stock_info.get('skuState')  # 商品是否上架
+            stock_state = stock_info.get('StockState')  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
+            return sku_state == 1 and stock_state in (33, 40)
         except requests.exceptions.Timeout:
             logger.error('查询 %s 库存信息超时(%ss)', sku_id, self.timeout)
             return False
-        except requests.exceptions.RequestException as e:
-            raise AsstException('查询 %s 库存信息异常：%s' % (sku_id, e))
-
-        resp_json = parse_json(resp.text)
-        stock_info = resp_json.get('stock')
-        if not stock_info:
-            logger.error('查询 %s 库存信息异常, resp: %s', sku_id, resp_json)
+        except requests.exceptions.RequestException as request_exception:
+            logger.error('查询 %s 库存信息发生网络请求异常：%s', sku_id, request_exception)
             return False
-
-        sku_state = stock_info.get('skuState')  # 商品是否上架
-        stock_state = stock_info.get('StockState')  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
-        return sku_state == 1 and stock_state in (33, 40)
+        except Exception as e:
+            logger.error('查询 %s 库存信息发生异常, resp: %s, exception: %s', sku_id, resp_text, e)
+            return False
 
     @check_login
     def get_multi_item_stock(self, sku_ids, area):
@@ -551,24 +552,29 @@ class Assistant(object):
         headers = {
             'User-Agent': self.user_agent
         }
+
+        resp_text = ''
         try:
-            resp = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout)
+            resp_text = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout).text
+            stock = True
+            for sku_id, info in parse_json(resp_text).items():
+                sku_state = info.get('skuState')  # 商品是否上架
+                stock_state = info.get('StockState')  # 商品库存状态
+                if sku_state == 1 and stock_state in (33, 40):
+                    continue
+                else:
+                    stock = False
+                    break
+            return stock
         except requests.exceptions.Timeout:
             logger.error('查询 %s 库存信息超时(%ss)', list(items_dict.keys()), self.timeout)
             return False
-        except requests.exceptions.RequestException as e:
-            raise AsstException('查询 %s 库存信息异常：%s' % (list(items_dict.keys()), e))
-
-        stock = True
-        for sku_id, info in parse_json(resp.text).items():
-            sku_state = info.get('skuState')  # 商品是否上架
-            stock_state = info.get('StockState')  # 商品库存状态
-            if sku_state == 1 and stock_state in (33, 40):
-                continue
-            else:
-                stock = False
-                break
-        return stock
+        except requests.exceptions.RequestException as request_exception:
+            logger.error('查询 %s 库存信息发生网络请求异常：%s', list(items_dict.keys()), request_exception)
+            return False
+        except Exception as e:
+            logger.error('查询 %s 库存信息发生异常, resp: %s, exception: %s', list(items_dict.keys()), resp_text, e)
+            return False
 
     def _if_item_removed(self, sku_id):
         """判断商品是否下架
@@ -1220,6 +1226,7 @@ class Assistant(object):
             'eid': self.eid,
             'fp': self.fp,
             'token': token,
+            'pru': ''
         }
         return data
 
