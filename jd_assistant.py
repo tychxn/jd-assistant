@@ -87,8 +87,11 @@ class Assistant(object):
         with open(cookies_file, 'wb') as f:
             pickle.dump(self.sess.cookies, f)
 
-    def _validate_cookies(self):  # True -- cookies is valid, False -- cookies is invalid
-        # user can't access to order list page (would redirect to login page) if his cookies is expired
+    def _validate_cookies(self):
+        """验证cookies是否有效（是否登陆）
+        通过访问用户订单列表页进行判断：若未登录，将会重定向到登陆页面。
+        :return: cookies是否有效 True/False
+        """
         url = 'https://order.jd.com/center/list.action'
         payload = {
             'rid': str(int(time.time() * 1000)),
@@ -1271,7 +1274,7 @@ class Assistant(object):
     def exec_seckill(self, sku_id, retry=4, interval=4, num=1):
         """立即抢购
 
-        抢购商品的下单流程与普通商品不同，不支持加入购物车，主要执行流程如下：
+        抢购商品的下单流程与普通商品不同，不支持加入购物车，可能需要提前预约，主要执行流程如下：
         1. 访问商品的抢购链接
         2. 访问抢购订单结算页面（好像可以省略这步，待测试）
         3. 提交抢购（秒杀）订单
@@ -1321,8 +1324,8 @@ class Assistant(object):
 
         预约抢购商品特点：
             1.需要提前点击预约
-            2.大部分此类商品在预约后自动加入购物车，但是无法勾选✓，也无法️进入到结算页面
-            3.到了抢购的时间点后将商品加入购物车，此时才能勾选并下单
+            2.大部分此类商品在预约后自动加入购物车，在购物车中可见但无法勾选✓，也无法进入到结算页面（重要特征）
+            3.到了抢购的时间点后，才能勾选并结算下单
 
         注意：
             1.请在抢购开始前手动清空购物车中此类无法勾选的商品！（因为脚本在执行清空购物车操作时，无法清空不能勾选的商品）
