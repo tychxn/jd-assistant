@@ -268,6 +268,11 @@ class Assistant(object):
 
         QRCode_file = 'QRcode.png'
         save_image(resp, QRCode_file)
+        #执行拼接图，把qrcode放在白色背景图片中间位置，避免透明底导致app无法识别二维码
+        logger.info('生成白底二维码>>>')
+        cmd = "composite -gravity center QRcode.png QRcodeBG.png QRcode.png"
+        result = os.popen(cmd)
+        print(result)
         logger.info('二维码获取成功，请打开京东APP扫描')
         open_image(QRCode_file)
         return True
