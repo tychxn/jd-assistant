@@ -1108,6 +1108,8 @@ class Assistant(object):
             'Host': 'itemko.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(sku_id),
         }
+        retry_interval = 0.5
+
         while True:
             resp = self.sess.get(url=url, headers=headers, params=payload)
             resp_json = parse_json(resp.text)
@@ -1119,8 +1121,8 @@ class Assistant(object):
                 logger.info("抢购链接获取成功: %s", seckill_url)
                 return seckill_url
             else:
-                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，1秒后重试", sku_id)
-                time.sleep(1)
+                logger.info("抢购链接获取失败，%s不是抢购商品或抢购页面暂未刷新，%s秒后重试", sku_id, retry_interval)
+                time.sleep(retry_interval)
 
     @deprecated
     def request_seckill_url(self, sku_id):
@@ -1198,7 +1200,7 @@ class Assistant(object):
             'skuId': sku_id,
             'num': num,
             'addressId': default_address['id'],
-            'yuShou': 'false',
+            'yuShou': str(bool(int(init_info['seckillSkuVO']['extMap'].get('YuShou', '0')))).lower(),
             'isModifyAddress': 'false',
             'name': default_address['name'],
             'provinceId': default_address['provinceId'],
@@ -1218,7 +1220,7 @@ class Assistant(object):
             'invoicePhone': invoice_info.get('invoicePhone', ''),
             'invoicePhoneKey': invoice_info.get('invoicePhoneKey', ''),
             'invoice': 'true' if invoice_info else 'false',
-            'password': '',
+            'password': global_config.get('account', 'payment_pwd'),
             'codTimeType': 3,
             'paymentType': 4,
             'areaCode': '',
@@ -1244,14 +1246,23 @@ class Assistant(object):
         }
         if not self.seckill_order_data.get(sku_id):
             self.seckill_order_data[sku_id] = self._gen_seckill_order_data(sku_id, num)
+
         headers = {
             'User-Agent': self.user_agent,
             'Host': 'marathon.jd.com',
             'Referer': 'https://marathon.jd.com/seckill/seckill.action?skuId={0}&num={1}&rid={2}'.format(
                 sku_id, num, int(time.time())),
         }
-        resp = self.sess.post(url=url, params=payload, data=self.seckill_order_data.get(sku_id), headers=headers)
-        resp_json = parse_json(resp.text)
+
+        resp_json = None
+        try:
+            resp = self.sess.post(url=url, headers=headers, params=payload,
+                                  data=self.seckill_order_data.get(sku_id), timeout=5)
+            logger.info(resp.text)
+            resp_json = parse_json(resp.text)
+        except Exception as e:
+            logger.error('秒杀请求出错：%s', str(e))
+            return False
         # 返回信息
         # 抢购失败：
         # {'errorMessage': '很遗憾没有抢到，再接再厉哦。', 'orderId': 0, 'resultCode': 60074, 'skuId': 0, 'success': False}
@@ -1271,7 +1282,7 @@ class Assistant(object):
             return False
 
     @deprecated
-    def exec_seckill(self, sku_id, retry=4, interval=4, num=1):
+    def exec_seckill(self, sku_id, retry=4, interval=4, num=1, fast_mode=True):
         """立即抢购
 
         抢购商品的下单流程与普通商品不同，不支持加入购物车，可能需要提前预约，主要执行流程如下：
@@ -1283,12 +1294,16 @@ class Assistant(object):
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
         :param num: 购买数量，可选参数，默认1个
+        :param fast_mode: 快速模式：略过访问抢购订单结算页面这一步骤，默认为 True
         :return: 抢购结果 True/False
         """
         for count in range(1, retry + 1):
             logger.info('第[%s/%s]次尝试抢购商品:%s', count, retry, sku_id)
+
             self.request_seckill_url(sku_id)
-            self.request_seckill_checkout_page(sku_id, num)
+            if fast_mode:
+                self.request_seckill_checkout_page(sku_id, num)
+
             if self.submit_seckill_order(sku_id, num):
                 return True
             else:
@@ -1299,13 +1314,14 @@ class Assistant(object):
             return False
 
     @deprecated
-    def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1):
+    def exec_seckill_by_time(self, sku_ids, buy_time, retry=4, interval=4, num=1, fast_mode=True):
         """定时抢购
         :param sku_ids: 商品id，多个商品id用逗号进行分割，如"123,456,789"
         :param buy_time: 下单时间，例如：'2018-09-28 22:45:50.000'
         :param retry: 抢购重复执行次数，可选参数，默认4次
         :param interval: 抢购执行间隔，可选参数，默认4秒
         :param num: 购买数量，可选参数，默认1个
+        :param fast_mode: 快速模式：略过访问抢购订单结算页面这一步骤，默认为 True
         :return:
         """
         items_dict = parse_sku_id(sku_ids=sku_ids)
@@ -1316,7 +1332,7 @@ class Assistant(object):
 
         for sku_id in items_dict:
             logger.info('开始抢购商品:%s', sku_id)
-            self.exec_seckill(sku_id, retry, interval, num)
+            self.exec_seckill(sku_id, retry, interval, num, fast_mode)
 
     @check_login
     def exec_reserve_seckill_by_time(self, sku_id, buy_time, retry=4, interval=4, num=1):
