@@ -11,7 +11,10 @@ if __name__ == '__main__':
     asst = Assistant()  # 初始化
     asst.login_by_QRcode()  # 扫码登陆
     #asst.clear_cart()
-    asst.exec_seckill_by_time(sku_ids="100011551632,100006394713", buy_time="2020-03-08 20:00:00.060", retry=20,  interval=0.1)
+    # 口罩
+    #asst.exec_seckill_by_time(sku_ids="100011385146", buy_time="2020-02-16 20:00:00.085")
+    # 酒精
+    asst.exec_seckill_by_time(sku_ids="100011551632", buy_time="2020-02-26 20:00:00.000")
     # 执行预约抢购
     # 5个参数
     # sku_id: 商品id
