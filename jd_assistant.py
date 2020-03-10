@@ -1301,7 +1301,7 @@ class Assistant(object):
             logger.info('第[%s/%s]次尝试抢购商品:%s', count, retry, sku_id)
 
             self.request_seckill_url(sku_id)
-            if fast_mode:
+            if not fast_mode:
                 self.request_seckill_checkout_page(sku_id, num)
 
             if self.submit_seckill_order(sku_id, num):
