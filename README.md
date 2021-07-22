@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/tychxn/jd-assistant)
 
-京东抢购助手（短期内不再更新）
+京东抢购助手-由于原作者已不再更新、刚好我又有需要、所以在此基础上进行了修改；
 
 ## 主要功能
 
