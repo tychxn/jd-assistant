@@ -1011,7 +1011,7 @@ class Assistant(object):
     @check_login
     def get_order_info(self, unpaid=True):
         """查询订单信息
-        :param unpaid: 只显示未付款订单，可选参数，默认为True
+        :param unpaid: 默认只显示未付款订单，可选参数，默认为True
         :return:
         """
         url = 'https://order.jd.com/center/list.action'
@@ -1083,6 +1083,41 @@ class Assistant(object):
 
             if not exist_order:
                 logger.info('订单查询为空')
+        except Exception as e:
+            logger.error(e)
+
+    @check_login
+    def get_order_vercode(self, orderId):
+        """
+        获取已购订单的验证码
+        先登录订单中心获取所有订单、通过订单查询验证码
+        """
+        #print(orderId)
+        url = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=1".format(orderId)
+        payload = {
+            'search': 0,
+            'd': 1,
+            's': 4096,
+        }  # Orders for nearly three months
+        headers = {
+            'User-Agent': self.user_agent,
+            'Referer': 'https://passport.jd.com/uc/login?ltype=logout',
+        }
+
+        try:
+            resp = self.sess.get(url=url, params=payload, headers=headers)
+            if not response_status(resp):
+                logger.error('获取订单页信息失败')
+                return
+            soup = BeautifulSoup(resp.text, "html.parser")
+            # logger.info('************************查询订单验证码************************')
+
+            order_vercode_str = soup.select('td.tr-vercode.un-use')
+            #print(order_vercode_str)
+            pattern = (r'\d{12}')
+            order_vercode = re.findall(pattern, str(order_vercode_str))[0]
+            print("订单号：", orderId, "  验证码：",order_vercode)
+        
         except Exception as e:
             logger.error(e)
 
