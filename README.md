@@ -50,7 +50,7 @@ pip install -r requirements.txt
 
 程序主入口在 `main.py`
 
-👉 [使用教程请参看Wiki](https://github.com/tychxn/jd-assistant/wiki/1.-%E4%BA%AC%E4%B8%9C%E6%8A%A2%E8%B4%AD%E5%8A%A9%E6%89%8B%E7%94%A8%E6%B3%95)
+👉 [使用教程请参看Wiki](https://github.com/huaisha1224/jd-assistant/wiki/%E4%BA%AC%E4%B8%9C%E6%8A%A2%E8%B4%AD%E5%8A%A9%E6%89%8B)
 
 
 ## 更新记录
