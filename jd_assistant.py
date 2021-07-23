@@ -1032,7 +1032,7 @@ class Assistant(object):
                 return
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            logger.info('************************订单列表页查询************************')
+            # logger.info('************************订单列表页查询************************')
             order_table = soup.find('table', {'class': 'order-tb'})
             table_bodies = order_table.select('tbody')
             exist_order = False
@@ -1050,11 +1050,12 @@ class Assistant(object):
 
                 exist_order = True
 
-                # get order_time, order_id
+                # 获取订单时间、订单ID
                 tr_th = table_body.select('tr.tr-th')[0]
                 order_time = get_tag_value(tr_th.select('span.dealtime'))
                 order_id = get_tag_value(tr_th.select('span.number a'))
-
+                #print(tr_th)
+                self.get_order_vercode(order_id)    #调用查询验证码函数
                 # get sum_price, pay_method
                 sum_price = ''
                 pay_method = ''
@@ -1077,9 +1078,9 @@ class Assistant(object):
                     quantity = get_tag_value(tr_bd.select('div.goods-number'))[1:]
                     items_dict[item_id] = quantity
 
-                order_info_format = '下单时间:{0}----订单号:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
-                logger.info(order_info_format.format(order_time, order_id, parse_items_dict(items_dict), order_status,
-                                                     sum_price, pay_method))
+                # order_info_format = '下单时间:{0}----订单号:{1}----商品列表:{2}----订单状态:{3}----总金额:{4}元----付款方式:{5}'
+                # logger.info(order_info_format.format(order_time, order_id, parse_items_dict(items_dict), order_status,
+                #                                      sum_price, pay_method))
 
             if not exist_order:
                 logger.info('订单查询为空')
@@ -1113,10 +1114,18 @@ class Assistant(object):
             # logger.info('************************查询订单验证码************************')
 
             order_vercode_str = soup.select('td.tr-vercode.un-use')
+            order_vercode_status = soup.select('td.un-use')
+            #print(order_vercode_status)
             #print(order_vercode_str)
-            pattern = (r'\d{12}')
-            order_vercode = re.findall(pattern, str(order_vercode_str))[0]
-            print("订单号：", orderId, "  验证码：",order_vercode)
+            #pattern = (r'\d{12}')
+            order_vercode = re.findall(r'\d{12}', str(order_vercode_str))[0]  #订单验证码
+
+            if re.findall(r'未消费', str(order_vercode_status)):
+                order_status = re.findall(r'未消费', str(order_vercode_status))[0]  #消费状态
+                if order_status:
+                    print("订单号：", orderId, "  验证码：",order_vercode, " 消费状态：", order_status)
+            else:
+                print("订单号：", orderId, "  验证码：",order_vercode)
         
         except Exception as e:
             logger.error(e)
