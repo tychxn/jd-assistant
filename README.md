@@ -1,9 +1,9 @@
 # JD-Assistant
 
 [![version](https://img.shields.io/badge/python-3.4+-blue.svg)](https://www.python.org/download/releases/3.4.0/) 
-[![status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/tychxn/jd-assistant)
+[![status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/huaisha1224/jd-assistant)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/tychxn/jd-assistant)
+[![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/huaisha1224/jd-assistant)
 
 京东抢购助手源代码Fork自https://github.com/tychxn/jd-assistant
 -由于原作者已不再更新、刚好我又有需要、所以在此基础上进行了修改；
