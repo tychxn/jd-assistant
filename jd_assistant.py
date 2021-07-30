@@ -1034,6 +1034,10 @@ class Assistant(object):
 
             logger.info('************************订单列表页查询************************')
             order_table = soup.find('table', {'class': 'order-tb'})
+
+            # 判断一下订单获取是否成功
+            if order_table == None:
+                logger.info('订单信息获取失败、请删除cookies文件夹后重新尝试')
             table_bodies = order_table.select('tbody')
             exist_order = False
             for table_body in table_bodies:
@@ -1415,10 +1419,10 @@ class Assistant(object):
     def get_order_vercode(self, unpaid_new=False):
         """获取已购本地服务订单的验证码已经验证码状态
         登录订单中心获取所有订单
-        通过本地服务订单接口查询是否为本地服务订单类型
+        通过本地生活服务订单接口查询是否为本地生活服务订单类型
         查询验证码、并记录消费状态
         :
-        :vercode_url: 本地服务订单接口
+        :vercode_url: 本地生活服务订单接口
         """
         url = 'https://order.jd.com/center/list.action'
         payload = {
@@ -1441,6 +1445,10 @@ class Assistant(object):
 
             #logger.info('************************订单列表页查询************************')
             order_table = soup.find('table', {'class': 'order-tb'})
+            # 判断一下订单获取是否成功
+            if order_table == None:
+                logger.info('订单信息获取失败、请删除cookies文件夹后重新尝试')
+                #print("订单信息获取失败、请删除cookies文件夹后重新尝试")
             table_bodies = order_table.select('tbody')
             exist_order = False
             for table_body in table_bodies:
@@ -1482,7 +1490,7 @@ class Assistant(object):
 
                     if re.search(r'您的账号', str(order_type)): #判断订单是否为本地服务类型订单
                             order_info_format = '下单时间: {0}---订单号: {1}----{2}'
-                            logger.info(order_info_format.format(order_time, order_id, "非本地服务订单"))
+                            logger.info(order_info_format.format(order_time, order_id, "非本地生活服务订单"))
                     else:   #没有关键词说明是本地服务订单类型
                         order_vercode_str = vercode_soup.select('td.tr-vercode.un-use')
                         order_vercode_status = vercode_soup.select('td.un-use')
@@ -1503,4 +1511,5 @@ class Assistant(object):
             if not exist_order:
                 logger.info('订单查询为空')
         except Exception as e:
+            #print('报错啦')
             logger.error(e)
