@@ -1085,7 +1085,9 @@ class Assistant(object):
             if not exist_order:
                 logger.info('订单查询为空')
         except Exception as e:
+            self.clean_cookies()
             logger.error(e)
+            logger.info('已删除cookies、请重新运行程序')
 
     @deprecated
     def _get_seckill_url(self, sku_id):
@@ -1512,4 +1514,15 @@ class Assistant(object):
                 logger.info('订单查询为空')
         except Exception as e:
             #print('报错啦')
+            self.clean_cookies()
             logger.error(e)
+            logger.info('已删除cookies、请重新运行程序')
+        
+    def clean_cookies(self):
+        """清理cookies文件
+        """
+        cookies_path  = os.getcwd() + '\cookies'
+        with os.scandir(cookies_path) as entries:
+            for entry in entries:
+                #print(entry.name)
+                os.remove(cookies_path + '\\' + entry.name)
