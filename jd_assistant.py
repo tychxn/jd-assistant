@@ -1469,7 +1469,8 @@ class Assistant(object):
                 order_id = get_tag_value(tr_th.select('span.number a'))
                 #print("start")
                 # 本地服务订单接口查询查询消费验证码
-                vercode_url = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=1".format(order_id)
+                vercode_url = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=2".format(order_id)
+                #vercode_url_back = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=1".format(order_id)
                 payload = {
                     'search': 0,
                     'd': 1,
