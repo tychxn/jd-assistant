@@ -1471,6 +1471,7 @@ class Assistant(object):
                 # 本地服务订单接口查询查询消费验证码
                 vercode_url = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=2".format(order_id)
                 #vercode_url_back = "http://locdetails.jd.com/pc/locdetail?orderId={}&modelId=1".format(order_id)
+                #vercode_url= "https://locdetails.jd.com/pc/locdetail?orderId=217734548778&modelId=2"
                 payload = {
                     'search': 0,
                     'd': 1,
@@ -1487,26 +1488,41 @@ class Assistant(object):
                         logger.error('获取订单验证码页信息失败')
                         return
                     vercode_soup = BeautifulSoup(resp.text, "html.parser")
-                    order_type = vercode_soup.select('h2')
+
+                    #获取完整订单信息
+                    # for row in vercode_soup.select('tbody tr'):
+                    #     row_text = [x.text for x in row.find_all('td')]
+                    #     #vercode_tr = (', '.join(row_text))
+                    #     vercode_tr = (', '.join(row_text).replace('\n','').replace('    ', '').replace('\r\n', ''))
+                    #     print(vercode_tr.split(',',1)[0])
+                    #     print(vercode_tr.split(',',2)[1])
+
+                    order_type = vercode_soup.select('h2')  #判断异常
 
                     #通过本地服务订单接口查询订单时非本地服务器订单会提示"您的账号与订单信息不匹配或非loc订单，请重新跳转"
 
                     if re.search(r'您的账号', str(order_type)): #判断订单是否为本地服务类型订单
                             order_info_format = '下单时间: {0}---订单号: {1}----{2}'
                             logger.info(order_info_format.format(order_time, order_id, "非本地生活服务订单"))
-                    else:   #没有关键词说明是本地服务订单类型
-                        order_vercode_str = vercode_soup.select('td.tr-vercode.un-use')
-                        order_vercode_status = vercode_soup.select('td.un-use')
+                    
+                    #没有关键词说明是本地服务订单类型
+                    else:
+                        order_vercode_str = vercode_soup.select('td.tr-vercode.un-use') #定位验证码位置
+                        order_vercode_status = vercode_soup.select('td.un-use')         #消费状态
+
                         order_vercode = re.findall(r'\d{12}', str(order_vercode_str))[0]  #订单验证码
 
-                        if re.findall(r'未消费', str(order_vercode_status)):
-                            vercode_status = re.findall(r'未消费', str(order_vercode_status))[0]  #消费状态
+                        if re.findall(r'未消费', str(order_vercode_status)):    #判断消费状态
+                            vercode_status = re.findall(r'未消费', str(order_vercode_status))[0]
                             if vercode_status:
                                 order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2} ---消费状态: {3}'
                                 logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_status))
+
                         else:
+                            # 获取验证码消费时间
+                            vercode_usetime = re.findall(r"(\d{4}-\d{1,2}-\d{1,2}\s\d{1,2}:\d{1,2}:\d{1,2} 已消费)", str(vercode_soup))
                             order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2}----消费状态: {3}'
-                            logger.info(order_info_format.format(order_time, order_id, order_vercode, "已消费"))
+                            logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_usetime))
              
                 except Exception as e:
                     logger.error(e)

@@ -4,7 +4,7 @@ import logging
 import logging.handlers
 from time import strftime
 
-LOG_FILENAME = strftime("jd-assistant_%Y_%m_%d_%H_%M.log")
+LOG_FILENAME = strftime("jd-assistant_%Y_%m_%d_%H.log")
 
 logger = logging.getLogger()
 
