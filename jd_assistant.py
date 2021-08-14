@@ -1516,7 +1516,7 @@ class Assistant(object):
                             vercode_status = re.findall(r'未消费', str(order_vercode_status))[0]
                             if vercode_status:
                                 order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2} ---消费状态: {3}'
-                                logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_status))
+                                logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_status[0]))
 
                         else:
                             # 获取验证码消费时间
