@@ -10,6 +10,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+import shimo
 from config import global_config
 from exception import AsstException
 from log import logger
