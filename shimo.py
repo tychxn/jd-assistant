@@ -3,15 +3,16 @@
 """
     提交数据到石墨文档
 """
-from util import response_status
+
 import requests
+import random
 
 def shimo(content):
    """提交数据到石墨文档表单收集器
    """
    # 石墨文档提交数据格式
    data = {
-      "duration" : 55,
+      "duration" : 55,  #时间
       "formRev" : 1,
       "responseContent" : [
          {
@@ -28,7 +29,7 @@ def shimo(content):
 
    url = "https://shimo.im/api/newforms/forms/xpVxJQJjT3GJ8WhJ/submit"
 
-   data['duration'] = 50
+   data['duration'] = random.randint(10,50) #生成随机时间
    data['responseContent'][0]['text']['content'] = content
    data['userName'] = "JD助手"
    # print("Duration: ", data['duration'])
