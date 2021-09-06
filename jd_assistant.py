@@ -10,12 +10,12 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
-import shimo
 from config import global_config
 from exception import AsstException
 from log import logger
 from messenger import Messenger
 from timer import Timer
+import shimo
 from util import (
     DEFAULT_TIMEOUT,
     DEFAULT_USER_AGENT,
@@ -1490,14 +1490,6 @@ class Assistant(object):
                         return
                     vercode_soup = BeautifulSoup(resp.text, "html.parser")
 
-                    #获取完整订单信息
-                    # for row in vercode_soup.select('tbody tr'):
-                    #     row_text = [x.text for x in row.find_all('td')]
-                    #     #vercode_tr = (', '.join(row_text))
-                    #     vercode_tr = (', '.join(row_text).replace('\n','').replace('    ', '').replace('\r\n', ''))
-                    #     print(vercode_tr.split(',',1)[0])
-                    #     print(vercode_tr.split(',',2)[1])
-
                     order_type = vercode_soup.select('h2')  #判断异常
 
                     #通过本地服务订单接口查询订单时非本地服务器订单会提示"您的账号与订单信息不匹配或非loc订单，请重新跳转"
@@ -1516,14 +1508,16 @@ class Assistant(object):
                         if re.findall(r'未消费', str(order_vercode_status)):    #判断消费状态
                             vercode_status = re.findall(r'未消费', str(order_vercode_status))[0]
                             if vercode_status:
-                                order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2} ---消费状态: {3}'
-                                logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_status[0]))
+                                submit = shimo.shimo(order_vercode)  #调用石墨文档模块提交数据
+                                #print(order_vercode)
+                                order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2} ---消费状态: {3}---提交状态: {4}'
+                                logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_status, submit))
 
                         else:
                             # 获取验证码消费时间
                             vercode_usetime = re.findall(r"(\d{4}-\d{1,2}-\d{1,2}\s\d{1,2}:\d{1,2}:\d{1,2} 已消费)", str(vercode_soup))
                             order_info_format = '下单时间: {0}---订单号: {1}---验证码: {2}----消费状态: {3}'
-                            logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_usetime))
+                            logger.info(order_info_format.format(order_time, order_id, order_vercode, vercode_usetime[0]))
              
                 except Exception as e:
                     logger.error(e)
@@ -1544,3 +1538,4 @@ class Assistant(object):
             for entry in entries:
                 #print(entry.name)
                 os.remove(cookies_path + '\\' + entry.name)
+                os.system('pause')
