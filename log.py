@@ -2,8 +2,9 @@
 # -*- encoding=utf8 -*-
 import logging
 import logging.handlers
+from time import strftime
 
-LOG_FILENAME = 'jd-assistant.log'
+LOG_FILENAME = strftime("jd-assistant_%Y_%m_%d_%H.log")
 
 logger = logging.getLogger()
 
