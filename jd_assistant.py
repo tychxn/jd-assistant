@@ -439,17 +439,13 @@ class Assistant(object):
             vender_id = match.group(1)
             self.item_vender_ids[sku_id] = vender_id
 
-        url = 'https://c0.3.cn/stock'
+        url = 'https://cd.jd.com/stocks'
         payload = {
-            'skuId': sku_id,
-            'buyNum': num,
+            'skuIds': sku_id,
             'area': area_id,
-            'ch': 1,
+            'type': 'getstocks',
             '_': str(int(time.time() * 1000)),
-            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999)),
-            'extraParam': '{"originid":"1"}',  # get error stock state without this param
-            'cat': cat,  # get 403 Forbidden without this param (obtained from the detail page)
-            'venderId': vender_id  # return seller information with this param (can't be ignored)
+            'callback': 'jQuery{}'.format(random.randint(1000000, 9999999))
         }
         headers = {
             'User-Agent': self.user_agent,
@@ -460,7 +456,7 @@ class Assistant(object):
         try:
             resp_text = requests.get(url=url, params=payload, headers=headers, timeout=self.timeout).text
             resp_json = parse_json(resp_text)
-            stock_info = resp_json.get('stock')
+            stock_info = resp_json.get(sku_id)
             sku_state = stock_info.get('skuState')  # 商品是否上架
             stock_state = stock_info.get('StockState')  # 商品库存状态：33 -- 现货  0,34 -- 无货  36 -- 采购中  40 -- 可配货
             return sku_state == 1 and stock_state in (33, 40)
