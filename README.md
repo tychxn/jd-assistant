@@ -6,7 +6,7 @@
 [![star, issue](https://img.shields.io/badge/star%2C%20issue-welcome-brightgreen.svg)](https://github.com/tychxn/jd-assistant)
 
 京东抢购助手（短期内不再更新）
-
+yuiyi
 ## 主要功能
 
 - 登陆京东商城（[www.jd.com](http://www.jd.com/)）
